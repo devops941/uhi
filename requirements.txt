@@ -1,0 +1,56 @@
+# Urban Heat Island Mapping with Spatial Interpolation
+# Python 3.11+
+
+# --- Core scientific stack ---
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+
+# --- Vector geospatial ---
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+# fiona is optional: geopandas uses pyogrio, and the code falls back gracefully
+fiona>=1.9; python_version < "3.13"
+
+# --- Raster geospatial ---
+rasterio>=1.3
+rasterstats>=0.19
+
+# --- Interpolation ---
+# SciPy provides cKDTree for the core IDW implementation
+# PyKrige powers the optional IDW-vs-kriging comparison
+pykrige>=1.7
+
+# --- Statistics ---
+statsmodels>=0.14
+esda>=2.5
+libpysal>=4.9
+
+# --- OSM data ---
+osmnx>=1.9
+
+# --- Storage ---
+SQLAlchemy>=2.0
+
+# --- Visualisation ---
+matplotlib>=3.8
+folium>=0.15
+plotly>=5.18
+
+# --- Dashboard ---
+streamlit>=1.30
+streamlit-folium>=0.18
+
+# --- Reporting ---
+Jinja2>=3.1
+markdown>=3.5
+
+# --- Config ---
+PyYAML>=6.0
+
+# --- Testing & quality ---
+pytest>=7.4
+pytest-cov>=4.1
+ruff>=0.3
+black>=24.1

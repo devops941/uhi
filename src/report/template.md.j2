@@ -1,0 +1,103 @@
+# {{ project.name }}
+
+**Study area:** {{ project.city }}, {{ project.country }}
+**Run:** {{ run_timestamp }} | **Source:** {{ source }} | **CRS (metric):** {{ crs_metric }}
+
+---
+
+## 1. Headline results
+
+| Metric | Value |
+|---|---|
+| Temperature samples used | {{ n_samples }} |
+| Analysis grid cells ({{ grid_cell_m }} m) | {{ n_grid_cells }} |
+| Mean IDW temperature | {{ mean_temp }} |
+| Rural baseline temperature | {{ rural_baseline }} |
+| Max UHI intensity | {{ max_uhi }} |
+| Mean UHI intensity | {{ mean_uhi }} |
+| Hotspot cells (95%) | {{ n_hotspots }} ({{ hotspot_pct }}%) |
+| Coldspot cells (95%) | {{ n_coldspots }} |
+| IDW selected power | {{ idw_power }} |
+| IDW LOO RMSE | {{ idw_rmse }} |
+| Regression R^2 | {{ r2 }} |
+| Regression adjusted R^2 | {{ adj_r2 }} |
+
+## 2. Correlation of temperature with land cover
+
+{{ correlation_table }}
+
+## 3. OLS regression: `temp_c ~ ndvi_mean + builtup_frac + dist_water_m`
+
+{{ regression_table }}
+
+**Standardised effect sizes**
+
+{{ standardised_table }}
+
+* VIF maximum: {{ max_vif }} (multicollinearity check; > 10 is a concern)
+* Moran's I of residuals: {{ moran_i }} (positive values indicate spatial autocorrelation,
+  so the OLS standard errors should be read with that caveat)
+* Estimated cooling from a +{{ ndvi_uplift }} NDVI uplift: **{{ cooling_estimate }} C**
+  (an estimate from the fitted coefficient, not a guarantee)
+
+## 4. Built-up vs green cells
+
+{{ group_table }}
+
+## 5. Interpolation (IDW)
+
+{{ cv_table }}
+
+### 5.1 IDW vs Ordinary Kriging
+
+Both methods are scored on the same leave-one-out split, so the lower RMSE
+reproduces held-out samples better.
+
+{{ interpolation_comparison_table }}
+
+* Better method on this dataset: **{{ best_interpolation }}**
+* Kriging variogram ({{ variogram_model }}): nugget {{ variogram_nugget }},
+  sill {{ variogram_psill }}, range {{ variogram_range }} m
+
+{{ variogram_note }}
+
+## 6. UHI intensity
+
+| Threshold | Area (km^2) | Share of city |
+|---|---|---|
+{% for row in uhi_threshold_rows %}| +{{ row.threshold }} C | {{ row.area_km2 }} | {{ row.pct }}% |
+{% endfor %}
+
+## 7. Tree-planting priority - top wards
+
+{{ ward_table }}
+
+Priority weights: {{ priority_weights }}
+
+## 8. Top priority cells
+
+{{ top_cells_table }}
+
+## 9. Figures
+
+{% for fig in figures %}- `{{ fig }}`
+{% endfor %}
+
+## 10. Method notes and limitations
+
+* Interpolation is inverse distance weighting; the power is selected by
+  leave-one-out cross-validation and the selected surface is exact at sample points.
+* Satellite land surface temperature is **surface**, not air, temperature. This is
+  stated here for honesty; results describe the surface heat field.
+* Residual spatial autocorrelation (Moran's I above) means the OLS p-values are
+  optimistic; a spatial lag/error model is listed as future work.
+* The cooling estimate is an indicative effect size from the regression, not a
+  guaranteed outcome of planting.
+* Out of scope: physical urban-climate simulation (WRF-UCM, ENVI-met), real-time
+  sensor networks and 3D building models.
+
+## 11. Future work
+
+Kriging and regression-kriging, Random-Forest LST downscaling, multi-season and
+time-of-day analysis, tree-planting scenario simulation, and integration with
+population data.
