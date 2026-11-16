@@ -1,0 +1,134 @@
+# =====================================================================
+# Urban Heat Island Mapping - central configuration
+# Every tunable value used by the pipeline lives here.
+# =====================================================================
+
+project:
+  name: "Urban Heat Island Mapping with Spatial Interpolation"
+  city: "Coimbatore"
+  country: "India"
+  crs_raw: "EPSG:4326"        # everything is stored raw in WGS84
+  # projected CRS is derived with gdf.estimate_utm_crs(); override if needed
+  crs_projected: null
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  sqlite_db: "data/uhi.db"
+  geopackage: "data/uhi_layers.gpkg"
+  outputs: "outputs"
+  figures: "outputs/figures"
+
+# ---------------------------------------------------------------
+# Synthetic city generator (mandatory fallback: no downloads needed)
+# ---------------------------------------------------------------
+synthetic:
+  seed: 42
+  size_m: 5000.0              # 5 km x 5 km study area
+  n_samples: 200              # number of temperature sample points
+  grid_size_m: 100.0          # analysis grid cell size
+  raster_res_m: 25.0          # resolution of the synthetic NDVI / land-cover rasters
+  base_temp_c: 29.0           # rural reference temperature
+  coef_builtup: 7.0           # +7 C at builtup_frac = 1 (warming)
+  coef_ndvi: -5.0             # -5 C at NDVI = 1 (cooling)
+  coef_water: -3.0            # -3 C at water_proximity = 1 (cooling)
+  noise_sd: 0.6               # spatial noise standard deviation
+  urban_core_radius_m: 1500.0
+  # random-walk correlation length for spatially correlated noise
+  noise_correlation_length_m: 800.0
+
+# ---------------------------------------------------------------
+# Cleaning / validation
+# ---------------------------------------------------------------
+cleaning:
+  temp_min_c: 10.0
+  temp_max_c: 60.0
+  outlier_k_neighbours: 8     # local median from k nearest neighbours
+  outlier_sd_threshold: 3.0
+  drop_duplicate_coords: true
+
+# ---------------------------------------------------------------
+# Land cover class codes (ESA WorldCover style, 0 = synthetic default)
+# ---------------------------------------------------------------
+landcover:
+  classes:
+    10: "tree_cover"
+    20: "shrubland"
+    30: "grassland"
+    40: "cropland"
+    50: "built_up"
+    60: "bare"
+    80: "water"
+  synthetic_classes:
+    0: "tree_cover"
+    1: "grassland"
+    2: "cropland"
+    3: "built_up"
+    4: "water"
+    5: "bare"
+
+# ---------------------------------------------------------------
+# Feature extraction
+# ---------------------------------------------------------------
+features:
+  buffer_m: 100.0             # circular buffer around each sample
+
+# ---------------------------------------------------------------
+# Interpolation (IDW)
+# ---------------------------------------------------------------
+idw:
+  k: 12                       # number of nearest neighbours
+  power_candidates: [1.0, 1.5, 2.0, 2.5, 3.0]
+  power_default: 2.0
+
+# ---------------------------------------------------------------
+# Interpolation comparison (spec Section 6 optional extension)
+# IDW and Ordinary Kriging are scored on the same leave-one-out split.
+# ---------------------------------------------------------------
+interpolation:
+  variogram_model: "spherical"   # spherical | exponential | gaussian | linear
+  nlags: 8
+
+# ---------------------------------------------------------------
+# UHI intensity
+# ---------------------------------------------------------------
+uhi:
+  rural_builtup_threshold: 0.10   # cells below this are "rural reference"
+  rural_min_dist_m: 1500.0        # must be at least this far from centre
+  thresholds_c: [2.0, 4.0]        # report area above these
+
+# ---------------------------------------------------------------
+# Hotspot detection (Getis-Ord Gi*)
+# ---------------------------------------------------------------
+hotspots:
+  weights: "queen"            # queen | knn
+  knn_k: 8
+  permutations: 999
+  confidence: 0.95            # p <= 0.05 => hotspot
+
+# ---------------------------------------------------------------
+# Built-up vs green group comparison
+# ---------------------------------------------------------------
+groups:
+  builtup_threshold: 0.5
+  ndvi_threshold: 0.4
+
+# ---------------------------------------------------------------
+# Tree-planting priority score
+# ---------------------------------------------------------------
+priority:
+  weights:
+    temp: 0.4
+    low_ndvi: 0.3
+    builtup: 0.2
+    pop_proxy: 0.1
+  top_wards: 10
+  top_cells: 50
+  ndvi_uplift: 0.1            # cooling estimate for +0.1 NDVI
+
+# ---------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------
+dashboard:
+  default_map_centre: null    # derived from data if null
+  default_zoom: 12
