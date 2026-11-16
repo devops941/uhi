@@ -365,9 +365,12 @@ def phase_dashboard_assets(cfg, prep, grid):
         "priority_rank",
     ]
     keep = [c for c in keep if c in grid.columns]
+    # compute centroids in the metric CRS (accurate), then transform the points
+    metric_centroids = gpd.GeoSeries(grid.geometry.centroid, crs=grid.crs)
+    wgs_centroids = metric_centroids.to_crs("EPSG:4326")
     grid_wgs = grid.to_crs("EPSG:4326")
-    grid_wgs["lon"] = grid_wgs.geometry.centroid.x
-    grid_wgs["lat"] = grid_wgs.geometry.centroid.y
+    grid_wgs["lon"] = wgs_centroids.x.to_numpy()
+    grid_wgs["lat"] = wgs_centroids.y.to_numpy()
     grid_wgs[keep + ["lat", "lon"]].to_parquet(dash_dir / "grid.parquet", index=False)
     prep.samples.to_crs("EPSG:4326").drop(columns="geometry").to_csv(
         dash_dir / "samples.csv", index=False
