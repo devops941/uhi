@@ -132,6 +132,10 @@ def inject_theme() -> None:
         .uhi-pill.cyan {{ background: rgba(6,182,212,0.16); border-color: rgba(6,182,212,0.55); color: #cffafe !important; }}
         .uhi-pill.lime {{ background: rgba(132,204,22,0.16); border-color: rgba(132,204,22,0.55); color: #ecfccb !important; }}
         .uhi-pill.heat {{ background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.65); color: #fecaca !important; }}
+        .uhi-pill.critical {{ background: rgba(239,68,68,0.32); border-color: #ef4444; color: #fee2e2 !important; font-weight: 700; box-shadow: 0 0 12px rgba(239,68,68,0.5); }}
+        .uhi-pill.high {{ background: rgba(249,115,22,0.28); border-color: #f97316; color: #ffedd5 !important; font-weight: 700; }}
+        .uhi-pill.moderate {{ background: rgba(245,158,11,0.24); border-color: #f59e0b; color: #fef3c7 !important; }}
+        .uhi-pill.resilient {{ background: rgba(16,185,129,0.24); border-color: #10b981; color: #d1fae5 !important; }}
 
         /* ---------- KPI cards ---------- */
         .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; margin: 6px 0 22px; }}
@@ -317,4 +321,27 @@ def image_card(img_path: str | Path, title: str, description: str, badge: str = 
         file_name=p.name,
         mime="image/png",
         key=f"dl_card_{p.stem}",
+    )
+
+
+def guide_box(title: str, items: list[tuple[str, str]], icon: str = "💡") -> None:
+    """Render a student-friendly concept explanation box with bullet points."""
+    body = "".join(
+        f'<div style="margin-bottom:8px;"><strong style="color:#fbbf24;">{h}:</strong> '
+        f'<span style="color:#e2e8f0;">{desc}</span></div>'
+        for h, desc in items
+    )
+    st.markdown(
+        f"""
+        <div class="glass" style="border-left: 4px solid #f59e0b; padding: 16px 20px; margin-bottom: 20px; background: rgba(30, 22, 26, 0.72);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span style="font-size:1.25rem;">{icon}</span>
+            <span style="font-family:'Space Grotesk',sans-serif; font-size:1.04rem; font-weight:700; color:#fff;">{title}</span>
+          </div>
+          <div style="font-size:0.90rem; line-height:1.55;">
+            {body}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )

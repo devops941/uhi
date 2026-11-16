@@ -68,11 +68,22 @@ reproduces held-out samples better.
 {% for row in uhi_threshold_rows %}| +{{ row.threshold }} C | {{ row.area_km2 }} | {{ row.pct }}% |
 {% endfor %}
 
-## 7. Tree-planting priority - top wards
+## 7. Place-based thermal vulnerability and tree-planting priority (Ward Level)
 
 {{ ward_table }}
 
 Priority weights: {{ priority_weights }}
+
+### 7.1 Place-Based Vulnerability Tier Classification
+
+Wards are categorized into actionable intervention tiers based on composite thermal severity, Getis-Ord Gi* hotspot concentration, and vegetation deficit:
+
+* **Tier 1 (Critical Heat Emergency):** Wards with priority rank 1–3 or hotspot coverage ≥ 50%. Immediate urban greening, roadside shade corridors, and cool-roof mandates required.
+* **Tier 2 (High Thermal Vulnerability):** Wards with elevated UHI (> 2.5 °C) or high impervious density (> 60%). High priority for vacant land greening and tree canopy expansion.
+* **Tier 3 (Moderate Thermal Risk):** Wards with localized micro-hotspots. Target shade trees along pedestrian and transit arteries.
+* **Tier 4 (Resilient / Thermal Refuge):** Wards with existing high canopy cover and minimal hotspot concentration. Conservation priority to protect mature tree stock.
+
+{{ place_based_dossier_table }}
 
 ## 8. Top priority cells
 

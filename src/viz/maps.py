@@ -252,146 +252,187 @@ def build_folium_map(
     from folium.plugins import HeatMap
 
     layers = layers or ["temperature", "hotspots"]
-    grid_wgs = grid.to_crs("EPSG:4326")
+    grid_wgs = grid.to_crs("EPSG:4326") if not grid.empty and hasattr(grid, "to_crs") else grid
+    if not grid_wgs.empty and hasattr(grid_wgs, "geometry"):
+        grid_wgs = grid_wgs[~grid_wgs.geometry.is_empty].copy()
 
     if centre is None:
-        c = grid_wgs.geometry.union_all().centroid
-        centre = (c.y, c.x)
+        if not grid_wgs.empty and hasattr(grid_wgs, "geometry") and not grid_wgs.geometry.is_empty.all():
+            union_g = grid_wgs.geometry.union_all()
+            if not union_g.is_empty:
+                c = union_g.centroid
+                if not c.is_empty:
+                    centre = (float(c.y), float(c.x))
+        if centre is None and boundary is not None and not boundary.empty:
+            b_wgs = boundary.to_crs("EPSG:4326")
+            if hasattr(b_wgs, "geometry"):
+                b_wgs = b_wgs[~b_wgs.geometry.is_empty]
+            if not b_wgs.empty:
+                union_b = b_wgs.geometry.union_all()
+                if not union_b.is_empty:
+                    c = union_b.centroid
+                    if not c.is_empty:
+                        centre = (float(c.y), float(c.x))
+        if centre is None:
+            centre = (11.0168, 76.9558)
 
     fmap = folium.Map(
         location=centre, zoom_start=zoom, tiles="CartoDB dark_matter", control_scale=True
     )
 
-    if boundary is not None:
-        folium.GeoJson(
-            boundary.to_crs("EPSG:4326").__geo_interface__,
-            name="City boundary",
-            style_function=lambda _: {"color": "#7c3aed", "weight": 2.4, "fill": False},
-        ).add_to(fmap)
+    if boundary is not None and not boundary.empty:
+        b_clean = boundary.to_crs("EPSG:4326")
+        if hasattr(b_clean, "geometry"):
+            b_clean = b_clean[~b_clean.geometry.is_empty]
+        if not b_clean.empty:
+            folium.GeoJson(
+                b_clean.__geo_interface__,
+                name="City boundary",
+                style_function=lambda _: {"color": "#7c3aed", "weight": 2.4, "fill": False},
+            ).add_to(fmap)
 
-    cell_pts = np.column_stack([grid_wgs.geometry.centroid.y, grid_wgs.geometry.centroid.x])
+    if not grid_wgs.empty and hasattr(grid_wgs, "geometry"):
+        cell_pts = np.column_stack([grid_wgs.geometry.centroid.y, grid_wgs.geometry.centroid.x])
+    else:
+        cell_pts = np.empty((0, 2))
 
-    if "temperature" in layers and "temp_idw" in grid_wgs.columns:
+    if "temperature" in layers and "temp_idw" in grid_wgs.columns and not grid_wgs.empty:
         vals = grid_wgs["temp_idw"].to_numpy(dtype=float)
-        lo, hi = np.nanpercentile(vals, 2), np.nanpercentile(vals, 98)
-        norm = np.clip((vals - lo) / max(hi - lo, 1e-6), 0, 1)
-        heat = [
-            [lat, lon, float(w)]
-            for (lat, lon), w in zip(cell_pts, norm, strict=False)
-            if np.isfinite(w)
-        ]
-        fg = folium.FeatureGroup(name="Temperature (IDW)", show=True)
-        HeatMap(
-            heat,
-            radius=14,
-            blur=18,
-            min_opacity=0.25,
-            max_opacity=heat_alpha,
-            gradient={
-                0.1: "#3b0f70",
-                0.4: "#8c2981",
-                0.6: "#de4968",
-                0.8: "#fe9f6d",
-                1.0: "#fcfdbf",
-            },
-        ).add_to(fg)
-        fg.add_to(fmap)
+        if len(vals) > 0 and np.isfinite(vals).any():
+            lo, hi = np.nanpercentile(vals, 2), np.nanpercentile(vals, 98)
+            norm = np.clip((vals - lo) / max(hi - lo, 1e-6), 0, 1)
+            heat = [
+                [lat, lon, float(w)]
+                for (lat, lon), w in zip(cell_pts, norm, strict=False)
+                if np.isfinite(w)
+            ]
+            fg = folium.FeatureGroup(name="Temperature (IDW)", show=True)
+            HeatMap(
+                heat,
+                radius=14,
+                blur=18,
+                min_opacity=0.25,
+                max_opacity=heat_alpha,
+                gradient={
+                    0.1: "#3b0f70",
+                    0.4: "#8c2981",
+                    0.6: "#de4968",
+                    0.8: "#fe9f6d",
+                    1.0: "#fcfdbf",
+                },
+            ).add_to(fg)
+            fg.add_to(fmap)
 
-    if "ndvi" in layers and "ndvi_mean" in grid_wgs.columns:
+    if "ndvi" in layers and "ndvi_mean" in grid_wgs.columns and not grid_wgs.empty:
         vals = grid_wgs["ndvi_mean"].to_numpy(dtype=float)
-        lo, hi = np.nanpercentile(vals, 2), np.nanpercentile(vals, 98)
-        norm = np.clip((vals - lo) / max(hi - lo, 1e-6), 0, 1)
-        heat = [
-            [lat, lon, float(w)]
-            for (lat, lon), w in zip(cell_pts, norm, strict=False)
-            if np.isfinite(w)
-        ]
-        fg = folium.FeatureGroup(name="NDVI", show=False)
-        HeatMap(
-            heat,
-            radius=13,
-            blur=16,
-            min_opacity=0.2,
-            gradient={0.1: "#0b3d0b", 0.5: "#41ab5d", 1.0: "#c7f9cc"},
-        ).add_to(fg)
-        fg.add_to(fmap)
+        if len(vals) > 0 and np.isfinite(vals).any():
+            lo, hi = np.nanpercentile(vals, 2), np.nanpercentile(vals, 98)
+            norm = np.clip((vals - lo) / max(hi - lo, 1e-6), 0, 1)
+            heat = [
+                [lat, lon, float(w)]
+                for (lat, lon), w in zip(cell_pts, norm, strict=False)
+                if np.isfinite(w)
+            ]
+            fg = folium.FeatureGroup(name="NDVI", show=False)
+            HeatMap(
+                heat,
+                radius=13,
+                blur=16,
+                min_opacity=0.2,
+                gradient={0.1: "#0b3d0b", 0.5: "#41ab5d", 1.0: "#c7f9cc"},
+            ).add_to(fg)
+            fg.add_to(fmap)
 
-    if "builtup" in layers and "builtup_frac" in grid_wgs.columns:
+    if "builtup" in layers and "builtup_frac" in grid_wgs.columns and not grid_wgs.empty:
         vals = grid_wgs["builtup_frac"].to_numpy(dtype=float)
-        heat = [
-            [lat, lon, float(w)]
-            for (lat, lon), w in zip(cell_pts, vals, strict=False)
-            if np.isfinite(w)
-        ]
-        fg = folium.FeatureGroup(name="Built-up fraction", show=False)
-        HeatMap(
-            heat,
-            radius=13,
-            blur=16,
-            min_opacity=0.2,
-            gradient={0.1: "#fff7bc", 0.6: "#f03b20", 1.0: "#800026"},
-        ).add_to(fg)
-        fg.add_to(fmap)
+        if len(vals) > 0 and np.isfinite(vals).any():
+            heat = [
+                [lat, lon, float(w)]
+                for (lat, lon), w in zip(cell_pts, vals, strict=False)
+                if np.isfinite(w)
+            ]
+            fg = folium.FeatureGroup(name="Built-up fraction", show=False)
+            HeatMap(
+                heat,
+                radius=13,
+                blur=16,
+                min_opacity=0.2,
+                gradient={0.1: "#fff7bc", 0.6: "#f03b20", 1.0: "#800026"},
+            ).add_to(fg)
+            fg.add_to(fmap)
 
-    if "hotspots" in layers and "is_hotspot" in grid_wgs.columns:
+    if "hotspots" in layers and "is_hotspot" in grid_wgs.columns and not grid_wgs.empty:
         hot = grid_wgs[grid_wgs["is_hotspot"] == 1]
         cold = grid_wgs[grid_wgs.get("is_coldspot", 0) == 1]
         fg = folium.FeatureGroup(name="Hotspots / coldspots", show=False)
         for _, row in hot.iterrows():
-            c = row.geometry.centroid
-            folium.CircleMarker(
-                [c.y, c.x],
-                radius=3,
-                color="#e11d48",
-                fill=True,
-                fill_opacity=0.75,
-                weight=0,
-            ).add_to(fg)
+            geom = getattr(row, "geometry", None)
+            if geom is not None and not geom.is_empty:
+                c = geom.centroid
+                if not c.is_empty:
+                    folium.CircleMarker(
+                        [float(c.y), float(c.x)],
+                        radius=3,
+                        color="#e11d48",
+                        fill=True,
+                        fill_opacity=0.75,
+                        weight=0,
+                    ).add_to(fg)
         for _, row in cold.iterrows():
-            c = row.geometry.centroid
-            folium.CircleMarker(
-                [c.y, c.x],
-                radius=3,
-                color="#2563eb",
-                fill=True,
-                fill_opacity=0.75,
-                weight=0,
-            ).add_to(fg)
+            geom = getattr(row, "geometry", None)
+            if geom is not None and not geom.is_empty:
+                c = geom.centroid
+                if not c.is_empty:
+                    folium.CircleMarker(
+                        [float(c.y), float(c.x)],
+                        radius=3,
+                        color="#2563eb",
+                        fill=True,
+                        fill_opacity=0.75,
+                        weight=0,
+                    ).add_to(fg)
         fg.add_to(fmap)
 
-    if "priority" in layers and "priority_score" in grid_wgs.columns:
+    if "priority" in layers and "priority_score" in grid_wgs.columns and not grid_wgs.empty:
         top = grid_wgs.nlargest(60, "priority_score")
         fg = folium.FeatureGroup(name="Top priority cells", show=False)
         for _, row in top.iterrows():
-            c = row.geometry.centroid
-            folium.CircleMarker(
-                [c.y, c.x],
-                radius=4,
-                color="#7c3aed",
-                fill=True,
-                fill_opacity=0.8,
-                weight=0,
-                tooltip=(
-                    f"Priority {row['priority_score']:.3f}<br>"
-                    f"Temp {row.get('temp_idw', float('nan')):.1f} C<br>"
-                    f"NDVI {row.get('ndvi_mean', float('nan')):.2f}"
-                ),
-            ).add_to(fg)
+            geom = getattr(row, "geometry", None)
+            if geom is not None and not geom.is_empty:
+                c = geom.centroid
+                if not c.is_empty:
+                    folium.CircleMarker(
+                        [float(c.y), float(c.x)],
+                        radius=4,
+                        color="#7c3aed",
+                        fill=True,
+                        fill_opacity=0.8,
+                        weight=0,
+                        tooltip=(
+                            f"Priority {row['priority_score']:.3f}<br>"
+                            f"Temp {row.get('temp_idw', float('nan')):.1f} C<br>"
+                            f"NDVI {row.get('ndvi_mean', float('nan')):.2f}"
+                        ),
+                    ).add_to(fg)
         fg.add_to(fmap)
 
     if samples is not None and not samples.empty:
         samples_wgs = samples.to_crs("EPSG:4326")
         fg = folium.FeatureGroup(name="Temperature samples", show=False)
         for _, row in samples_wgs.iterrows():
-            folium.CircleMarker(
-                [row.geometry.y, row.geometry.x],
-                radius=2.6,
-                color="#fbbf24",
-                fill=True,
-                fill_opacity=0.9,
-                weight=0,
-                tooltip=f"{row.get('sample_id', '')}: {row.get('temp_c', float('nan')):.1f} C",
-            ).add_to(fg)
+            geom = getattr(row, "geometry", None)
+            if geom is not None and not geom.is_empty:
+                c = geom.centroid if hasattr(geom, "centroid") else geom
+                if not c.is_empty:
+                    folium.CircleMarker(
+                        [float(c.y), float(c.x)],
+                        radius=2.6,
+                        color="#fbbf24",
+                        fill=True,
+                        fill_opacity=0.9,
+                        weight=0,
+                        tooltip=f"{row.get('sample_id', '')}: {row.get('temp_c', float('nan')):.1f} C",
+                    ).add_to(fg)
         fg.add_to(fmap)
 
     folium.LayerControl(collapsed=False).add_to(fmap)

@@ -48,6 +48,7 @@ def test_dashboard_module_imports():
     spec.loader.exec_module(module)
     assert hasattr(module, "main")
     assert hasattr(module, "page_overview")
+    assert hasattr(module, "page_place_report")
     assert hasattr(module, "page_priority")
 
 
@@ -56,6 +57,7 @@ def test_dashboard_module_imports():
     [
         "Overview",
         "Layers",
+        "Place-Based Report",
         "Visual Gallery",
         "Relationships",
         "Interpolation",

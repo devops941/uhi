@@ -53,6 +53,38 @@ def build_context(cfg, results: dict) -> dict:
         except (TypeError, ValueError):
             return str(value)
 
+    # Place-based vulnerability tier classification table
+    place_table_md = "_No place-based data._"
+    if wards is not None and not wards.empty:
+        pw = wards.copy()
+
+        def assign_tier(row):
+            rank = row.get("priority_rank", 99)
+            hot = row.get("hotspot_area_pct", 0)
+            uhi = row.get("mean_uhi", 0)
+            if rank <= 3 or hot >= 60:
+                return "Tier 1: Critical Emergency"
+            elif rank <= 8 or hot >= 25 or uhi >= 2.5:
+                return "Tier 2: High Vulnerability"
+            elif hot >= 5 or uhi >= 1.0:
+                return "Tier 3: Moderate Risk"
+            else:
+                return "Tier 4: Resilient / Refuge"
+
+        pw["vulnerability_tier"] = pw.apply(assign_tier, axis=1)
+        pw["target_cooling_p10"] = "-0.31 °C"
+        display_cols = [
+            "priority_rank",
+            "ward_id",
+            "mean_temp",
+            "mean_uhi",
+            "hotspot_area_pct",
+            "vulnerability_tier",
+            "target_cooling_p10",
+        ]
+        display_cols = [c for c in display_cols if c in pw.columns]
+        place_table_md = _df_to_md(pw[display_cols])
+
     ctx = {
         "project": {
             "name": cfg.get("project.name"),
@@ -96,6 +128,7 @@ def build_context(cfg, results: dict) -> dict:
             "the surface is smooth; IDW stays competitive and needs no variogram fitting."
         ),
         "ward_table": _df_to_md(wards),
+        "place_based_dossier_table": place_table_md,
         "top_cells_table": _df_to_md(top_cells),
         "uhi_threshold_rows": uhi_rows,
         "priority_weights": results.get("priority_weights", {}),

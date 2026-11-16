@@ -108,6 +108,15 @@ def load_boundary() -> gpd.GeoDataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def load_wards() -> gpd.GeoDataFrame:
+    cfg = get_config()
+    gpkg = cfg.path_for("geopackage")
+    if gpkg.exists() and "wards" in db_mod.gpkg_layers(gpkg):
+        return db_mod.read_layer(gpkg, "wards")
+    return gpd.GeoDataFrame()
+
+
+@st.cache_data(show_spinner=False)
 def load_raster(name: str) -> tuple[np.ndarray, tuple[float, float, float, float]]:
     import rasterio
 
