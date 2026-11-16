@@ -22,6 +22,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from rasterio.crs import CRS
 from rasterio.features import geometry_mask, rasterize
 from rasterio.warp import Resampling, reproject
 from rasterstats import zonal_stats
@@ -75,7 +76,7 @@ def raster_to_metric(
             profile = src.profile.copy()
             profile.update(dtype=out_dtype, nodata=out_nodata)
         else:
-            dst_crs = rasterio.crs.CRS.from_string(crs)
+            dst_crs = CRS.from_string(crs)
             transform, width, height = calculate_default_transform(
                 src.crs, dst_crs, src.width, src.height, *src.bounds
             )
@@ -126,7 +127,7 @@ def reproject_raster_to(path, crs: str) -> tuple[np.ndarray, dict]:
                 "nodata": src.nodata,
             }
 
-        dst_crs = rasterio.crs.CRS.from_string(crs)
+        dst_crs = CRS.from_string(crs)
         transform, width, height = rasterio.warp.calculate_default_transform(
             src.crs, dst_crs, src.width, src.height, *src.bounds
         )

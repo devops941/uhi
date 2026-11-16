@@ -56,10 +56,12 @@ def test_dashboard_module_imports():
     [
         "Overview",
         "Layers",
+        "Visual Gallery",
         "Relationships",
         "Interpolation",
         "Built-up vs Green",
         "Priority",
+        "Upload Data",
         "Download",
     ],
 )

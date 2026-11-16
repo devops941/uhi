@@ -10,11 +10,17 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+
+class RasterWgs(TypedDict):
+    array: np.ndarray
+    extent: tuple[float, float, float, float]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -60,7 +66,12 @@ def load_grid() -> gpd.GeoDataFrame:
     # fall back to the precomputed dashboard payload
     parquet = cfg.path_for("outputs") / "dashboard" / "grid.parquet"
     if parquet.exists():
-        return pd.read_parquet(parquet)
+        df = pd.read_parquet(parquet)
+        if "lat" in df.columns and "lon" in df.columns:
+            return gpd.GeoDataFrame(
+                df, geometry=gpd.points_from_xy(df["lon"], df["lat"]), crs="EPSG:4326"
+            )
+        return gpd.GeoDataFrame(df)
     _run_pipeline()
     return db_mod.read_layer(gpkg, "grid")
 
@@ -110,16 +121,17 @@ def load_raster(name: str) -> tuple[np.ndarray, tuple[float, float, float, float
 
 
 @st.cache_data(show_spinner=False)
-def load_geotiff_as_wgs(name: str):
+def load_geotiff_as_wgs(name: str) -> RasterWgs | None:
     """Reprojected array plus lon/lat extents, for Plotly overlays."""
     import rasterio
+    from rasterio.crs import CRS
     from rasterio.warp import Resampling, calculate_default_transform, reproject
 
     path = get_config().path_for("outputs") / name
     if not path.exists():
         return None
     with rasterio.open(path) as src:
-        dst_crs = rasterio.crs.CRS.from_string("EPSG:4326")
+        dst_crs = CRS.from_string("EPSG:4326")
         transform, width, height = calculate_default_transform(
             src.crs, dst_crs, src.width, src.height, *src.bounds
         )
@@ -155,3 +167,32 @@ def dataset_summary() -> dict:
         "city": cfg.get("project.city"),
         "crs": cfg.get("project.crs_raw"),
     }
+
+
+def get_figures_dir() -> Path:
+    cfg = get_config()
+    return cfg.path_for("figures", create=True)
+
+
+def list_figures() -> dict[str, Path]:
+    fig_dir = get_figures_dir()
+    return {p.name: p for p in sorted(fig_dir.glob("*.png"))}
+
+
+def save_uploaded_file(uploaded_file, target_filename: str) -> Path:
+    cfg = get_config()
+    raw_dir = cfg.path_for("data_raw", create=True)
+    target = raw_dir / target_filename
+    with open(target, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    return target
+
+
+def recompute_pipeline_with_custom_data(source: str = "synthetic", skip_generate: bool = True):
+    from src.pipeline import run_pipeline
+
+    cfg = get_config()
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    return run_pipeline(cfg, source=source, skip_generate=skip_generate)
+

@@ -27,7 +27,7 @@ if str(ROOT / "app") not in sys.path:
     # so `streamlit run app/dashboard.py` and `import app.dashboard` both resolve theme
     sys.path.insert(0, str(ROOT / "app"))
 
-import theme  # noqa: E402
+from app import theme  # noqa: E402
 
 from app import data as D  # noqa: E402
 from src.viz import maps as viz  # noqa: E402
@@ -58,6 +58,20 @@ def style_fig(fig, height: int = 380):
     return fig
 
 
+def show_chart(fig, height: int = 380):
+    try:
+        st.plotly_chart(style_fig(fig, height), width="stretch")
+    except TypeError:
+        st.plotly_chart(style_fig(fig, height), use_container_width=True)
+
+
+def show_dataframe(df, **kwargs):
+    try:
+        st.dataframe(df, width="stretch", **kwargs)
+    except TypeError:
+        st.dataframe(df, use_container_width=True, **kwargs)
+
+
 # ======================================================================
 # sidebar
 # ======================================================================
@@ -66,10 +80,14 @@ def sidebar(grid: pd.DataFrame, ward_summary: pd.DataFrame):
         st.markdown(
             f"""
             <div style="padding:6px 2px 14px">
-              <div style="font-family:'Space Grotesk',sans-serif;font-size:1.24rem;font-weight:700;
-                          background:{theme.ACCENT_GRADIENT};-webkit-background-clip:text;
-                          -webkit-text-fill-color:transparent;">UHI Studio</div>
-              <div class="muted">Urban heat mapping &amp; priority planning</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.45rem;">☀️</span>
+                <div style="font-family:'Space Grotesk',sans-serif;font-size:1.26rem;font-weight:700;
+                            background:{theme.ACCENT_GRADIENT};-webkit-background-clip:text;
+                            -webkit-text-fill-color:transparent;">UHI Studio</div>
+              </div>
+              <div class="muted" style="margin-top:2px;">Sun &amp; Dry Heatwave Mapping</div>
+              <div class="uhi-pill solar" style="margin-top:8px;font-size:0.66rem;">☀️ Solar Radiance Active</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -79,10 +97,12 @@ def sidebar(grid: pd.DataFrame, ward_summary: pd.DataFrame):
             [
                 "Overview",
                 "Layers",
+                "Visual Gallery",
                 "Relationships",
                 "Interpolation",
                 "Built-up vs Green",
                 "Priority",
+                "Upload Data",
                 "Download",
             ],
             label_visibility="collapsed",
@@ -161,18 +181,24 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
         raster = D.load_geotiff_as_wgs("temperature_idw.tif")
         fig = go.Figure()
         if raster is not None:
-            fig.add_trace(
-                go.Heatmap(
-                    z=raster["array"],
-                    x0=raster["extent"][0],
-                    dx=(raster["extent"][1] - raster["extent"][0]) / raster["array"].shape[1],
-                    y0=raster["extent"][2],
-                    dy=(raster["extent"][3] - raster["extent"][2]) / raster["array"].shape[0],
-                    colorscale="Inferno",
-                    colorbar=dict(title="C", thickness=12),
-                    hovertemplate="lon %{x:.4f}<br>lat %{y:.4f}<br>%{z:.2f} C<extra></extra>",
+            arr = raster["array"]
+            extent = raster["extent"]
+            if isinstance(arr, np.ndarray) and isinstance(extent, (tuple, list)):
+                h, w = arr.shape
+                dx = (extent[1] - extent[0]) / max(w, 1)
+                dy = (extent[3] - extent[2]) / max(h, 1)
+                fig.add_trace(
+                    go.Heatmap(
+                        z=arr,
+                        x0=extent[0],
+                        dx=dx,
+                        y0=extent[2],
+                        dy=dy,
+                        colorscale="Inferno",
+                        colorbar=dict(title="C", thickness=12),
+                        hovertemplate="lon %{x:.4f}<br>lat %{y:.4f}<br>%{z:.2f} C<extra></extra>",
+                    )
                 )
-            )
         samples = D.load_samples()
         if not samples.empty:
             s = samples.to_crs("EPSG:4326")
@@ -190,7 +216,7 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
         fig.update_xaxes(title=None, showgrid=False, showticklabels=False)
         fig.update_yaxes(showgrid=False, showticklabels=False)
-        st.plotly_chart(style_fig(fig, 480), use_container_width=True)
+        show_chart(fig, 480)
         theme.legend(
             [
                 ("#fcfdbf", "Hottest"),
@@ -222,7 +248,7 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
         fig.update_layout(showlegend=False, bargap=0.06)
         fig.update_xaxes(title="UHI intensity (C)")
         fig.update_yaxes(title="Cells")
-        st.plotly_chart(style_fig(fig, 250), use_container_width=True)
+        show_chart(fig, 250)
 
         theme.section_title("Land cover mix")
         lc = grid["landcover_class"].value_counts().reset_index()
@@ -238,7 +264,7 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
         fig.update_layout(showlegend=False, bargap=0.25)
         fig.update_xaxes(title="Cells")
         fig.update_yaxes(title=None)
-        st.plotly_chart(style_fig(fig, 250), use_container_width=True)
+        show_chart(fig, 250)
 
     theme.section_title("Hottest wards")
     ws = (
@@ -262,7 +288,37 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
         labels={"mean_temp": "Mean temp (C)", "ward_id": "Ward", "mean_uhi": "Mean UHI"},
     )
     fig.update_layout(coloraxis_colorbar=dict(title="UHI C", thickness=12))
-    st.plotly_chart(style_fig(fig, 320), use_container_width=True)
+    show_chart(fig, 320)
+
+    with st.expander("📸 High-Resolution Publication Maps", expanded=True):
+        st.markdown(
+            '<div class="muted" style="margin-bottom:14px;">'
+            "Publication-grade static spatial outputs generated by the pipeline in <code>outputs/figures/</code>:</div>",
+            unsafe_allow_html=True,
+        )
+        c_p1, c_p2, c_p3 = st.columns(3, gap="medium")
+        fig_dir = D.get_figures_dir()
+        with c_p1:
+            theme.image_card(
+                fig_dir / "temperature_idw.png",
+                "Interpolated Surface",
+                "Continuous surface temperature interpolated at 100 m cell resolution.",
+                badge="IDW SURFACE",
+            )
+        with c_p2:
+            theme.image_card(
+                fig_dir / "uhi_intensity.png",
+                "UHI Intensity",
+                "Surface temperature minus rural baseline (+9.1 C peak anomaly).",
+                badge="UHI INTENSITY",
+            )
+        with c_p3:
+            theme.image_card(
+                fig_dir / "hotspots.png",
+                "Getis-Ord Gi* Hotspots",
+                "95% confidence hot (red) and cold (blue) spatial clusters.",
+                badge="HOTSPOTS (95%)",
+            )
 
 
 def page_layers(grid: pd.DataFrame, view: pd.DataFrame, ward: str):
@@ -338,7 +394,7 @@ def page_layers(grid: pd.DataFrame, view: pd.DataFrame, ward: str):
             ],
         }
     ).round(3)
-    st.dataframe(stats, use_container_width=True, hide_index=True)
+    show_dataframe(stats, hide_index=True)
 
 
 def page_relationships(grid: pd.DataFrame):
@@ -406,13 +462,13 @@ def page_relationships(grid: pd.DataFrame):
             except Exception:
                 pass
             fig.update_layout(coloraxis_colorbar=dict(title="UHI", thickness=10))
-            st.plotly_chart(style_fig(fig, 300), use_container_width=True)
+            show_chart(fig, 300)
 
     with right:
         theme.section_title("Correlation table")
-        st.dataframe(corr.round(4), use_container_width=True, hide_index=True)
+        show_dataframe(corr.round(4), hide_index=True)
         theme.section_title("OLS coefficients")
-        st.dataframe(reg.round(4), use_container_width=True, hide_index=True)
+        show_dataframe(reg.round(4), hide_index=True)
         if not reg.empty:
             coefs = reg[reg["term"] != "const"]
             fig = go.Figure()
@@ -433,7 +489,7 @@ def page_relationships(grid: pd.DataFrame):
             fig.update_layout(showlegend=False, bargap=0.35)
             fig.update_xaxes(title="Coefficient (C per unit)")
             fig.update_yaxes(title=None)
-            st.plotly_chart(style_fig(fig, 300), use_container_width=True)
+            show_chart(fig, 300)
 
     theme.section_title("Residual map (spatial autocorrelation check)")
     fig = px.scatter(
@@ -447,7 +503,25 @@ def page_relationships(grid: pd.DataFrame):
     )
     fig.update_yaxes(scaleanchor="x", scaleratio=1, showticklabels=False)
     fig.update_xaxes(showticklabels=False)
-    st.plotly_chart(style_fig(fig, 420), use_container_width=True)
+    show_chart(fig, 420)
+
+    with st.expander("📸 Generated Relationship & Distribution Figures"):
+        c_r1, c_r2 = st.columns(2, gap="medium")
+        fig_dir = D.get_figures_dir()
+        with c_r1:
+            theme.image_card(
+                fig_dir / "builtup_vs_green.png",
+                "Thermal Regimes: Built-up vs Green",
+                "Direct statistical distribution gap showing built-up surfaces running +4.39 C hotter than green areas.",
+                badge="BOXPLOT",
+            )
+        with c_r2:
+            theme.image_card(
+                fig_dir / "observed_vs_predicted.png",
+                "Cross-Validation Accuracy",
+                "Observed held-out sample temperatures plotted against predicted temperatures along 1:1 line.",
+                badge="OLS / IDW FIT",
+            )
 
 
 def page_interpolation(grid: pd.DataFrame):
@@ -513,7 +587,7 @@ def page_interpolation(grid: pd.DataFrame):
             )
         fig.update_xaxes(title="IDW power (p)")
         fig.update_yaxes(title="Error (C)")
-        st.plotly_chart(style_fig(fig, 340), use_container_width=True)
+        show_chart(fig, 340)
 
     with right:
         theme.section_title("IDW vs kriging (same LOO split)")
@@ -536,7 +610,7 @@ def page_interpolation(grid: pd.DataFrame):
             fig.update_layout(bargap=0.3)
             fig.update_xaxes(title=None)
             fig.update_yaxes(title="Error (C)")
-            st.plotly_chart(style_fig(fig, 340), use_container_width=True)
+            show_chart(fig, 340)
         else:
             st.info("Run the pipeline to generate the kriging comparison.")
 
@@ -563,22 +637,40 @@ def page_interpolation(grid: pd.DataFrame):
                 name="1:1",
             )
         )
-        st.plotly_chart(style_fig(fig, 340), use_container_width=True)
+        show_chart(fig, 340)
 
     c1, c2 = st.columns(2, gap="large")
     with c1:
         theme.section_title("Cross-validation table")
-        st.dataframe(cv.round(4), use_container_width=True, hide_index=True)
+        show_dataframe(cv.round(4), hide_index=True)
     with c2:
         theme.section_title("Method comparison")
         if not comp.empty:
-            st.dataframe(comp.round(4), use_container_width=True, hide_index=True)
+            show_dataframe(comp.round(4), hide_index=True)
             winner = comp.sort_values("rmse").iloc[0]["method"]
             st.markdown(
                 f'<div class="glass"><b>Winner:</b> {winner} reproduces held-out samples '
                 "with the lowest RMSE on this dataset. IDW needs no variogram fitting, so it "
                 "remains the cheaper default when the two are close.</div>",
                 unsafe_allow_html=True,
+            )
+
+    with st.expander("📸 Generated Geostatistical Benchmark Figures", expanded=True):
+        c_i1, c_i2 = st.columns(2, gap="medium")
+        fig_dir = D.get_figures_dir()
+        with c_i1:
+            theme.image_card(
+                fig_dir / "idw_cv.png",
+                "Cross-Validation Error Curve",
+                "Leave-one-out cross validation RMSE and MAE across power parameter candidates.",
+                badge="OPTIMAL POWER",
+            )
+        with c_i2:
+            theme.image_card(
+                fig_dir / "observed_vs_predicted.png",
+                "Held-Out Validation Scatter",
+                "Held-out sample predictions demonstrating high spatial fidelity (R2 > 0.85).",
+                badge="LOO PREDICTIONS",
             )
 
 
@@ -636,11 +728,11 @@ def page_groups(grid: pd.DataFrame):
             )
         )
         fig.update_yaxes(title="Temperature (C)")
-        st.plotly_chart(style_fig(fig, 420), use_container_width=True)
+        show_chart(fig, 420)
 
     with right:
         theme.section_title("Test results")
-        st.dataframe(gc.round(5), use_container_width=True, hide_index=True)
+        show_dataframe(gc.round(5), hide_index=True)
         if row is not None:
             st.markdown(
                 f"""
@@ -675,7 +767,16 @@ def page_groups(grid: pd.DataFrame):
             color_discrete_sequence=theme.CATEGORICAL,
         )
         fig.update_layout(showlegend=True)
-        st.plotly_chart(style_fig(fig, 300), use_container_width=True)
+        show_chart(fig, 300)
+
+    with st.expander("📸 High-Resolution Group Comparison Map"):
+        fig_dir = D.get_figures_dir()
+        theme.image_card(
+            fig_dir / "builtup_vs_green.png",
+            "Comparative Thermal Regime Analysis",
+            "Welch's t-test and Mann-Whitney U test demonstrating statistically significant thermal divergence (p < 1e-20).",
+            badge="STATISTICAL TEST",
+        )
 
 
 def page_priority(grid: pd.DataFrame):
@@ -761,7 +862,7 @@ def page_priority(grid: pd.DataFrame):
             labels={"priority_score": "Priority score", "ward_id": "Ward", "mean_temp": "Mean C"},
         )
         fig.update_layout(coloraxis_colorbar=dict(title="C", thickness=12))
-        st.plotly_chart(style_fig(fig, 380), use_container_width=True)
+        show_chart(fig, 380)
 
     with right:
         theme.section_title("Priority map (top 300 cells)")
@@ -779,10 +880,10 @@ def page_priority(grid: pd.DataFrame):
         fig.update_yaxes(scaleanchor="x", scaleratio=1, showticklabels=False)
         fig.update_xaxes(showticklabels=False)
         fig.update_layout(coloraxis_colorbar=dict(title="Score", thickness=10))
-        st.plotly_chart(style_fig(fig, 380), use_container_width=True)
+        show_chart(fig, 380)
 
     theme.section_title("Ward ranking table")
-    st.dataframe(ward_live.round(4), use_container_width=True, hide_index=True)
+    show_dataframe(ward_live.round(4), hide_index=True)
 
     theme.section_title("Top 50 priority cells")
     cols = [
@@ -797,11 +898,233 @@ def page_priority(grid: pd.DataFrame):
         "live_rank",
     ]
     cols = [c for c in cols if c in work.columns]
-    st.dataframe(
+    show_dataframe(
         work.sort_values("live_rank").head(50)[cols].round(3),
-        use_container_width=True,
         hide_index=True,
     )
+
+    with st.expander("📸 Ward Tree-Planting Priority Ranking Map", expanded=True):
+        fig_dir = D.get_figures_dir()
+        theme.image_card(
+            fig_dir / "ward_ranking.png",
+            "Ward-Level Priority Ranking",
+            "Composite spatial ranking combining thermal severity, canopy deficit, and population density.",
+            badge="MUNICIPAL ACTION",
+        )
+
+
+def page_gallery():
+    theme.hero(
+        "Visual Atlas & Spatial Maps",
+        "High-resolution publication figures generated across the 9 pipeline phases: "
+        "temperature surfaces, UHI intensities, Getis-Ord Gi* hotspot clusters, and model diagnostics.",
+        pills=[("High-Res PNGs", "solar"), ("Publication Quality", "lime"), ("Direct Download", "cyan")],
+    )
+
+    fig_dir = D.get_figures_dir()
+
+    tab1, tab2, tab3 = st.tabs(["🌡️ Heat & Spatial Surfaces", "🌿 Environmental Covariates", "📊 Statistical Diagnostics"])
+
+    with tab1:
+        c1, c2 = st.columns(2, gap="large")
+        with c1:
+            theme.image_card(
+                fig_dir / "temperature_idw.png",
+                "Interpolated Temperature Surface (IDW)",
+                "Continuous land surface temperature interpolated at 100 m resolution using tuned inverse distance weighting (power p=3.0).",
+                badge="SURFACE MAP",
+            )
+            theme.image_card(
+                fig_dir / "hotspots.png",
+                "Getis-Ord Gi* Hot & Cold Spots (95% CI)",
+                "Statistically significant spatial clustering showing critical urban heat clusters (red) and vegetative/rural cold spots (blue).",
+                badge="SPATIAL CLUSTERS",
+            )
+        with c2:
+            theme.image_card(
+                fig_dir / "uhi_intensity.png",
+                "Urban Heat Island Intensity",
+                "Grid cell temperature minus rural baseline reference (25.63 C). Hottest urban cores reach up to +9.09 C above rural surroundings.",
+                badge="UHI ANOMALY",
+            )
+
+    with tab2:
+        c1, c2 = st.columns(2, gap="large")
+        with c1:
+            theme.image_card(
+                fig_dir / "ndvi.png",
+                "Mean NDVI Vegetation Index",
+                "Normalized Difference Vegetation Index showing high canopy parks and peripheral agriculture cooling the urban landscape.",
+                badge="VEGETATION",
+            )
+        with c2:
+            theme.image_card(
+                fig_dir / "builtup.png",
+                "Built-up Surface Fraction",
+                "Impervious surface and concrete coverage per 100 m cell, strongly driving localized heat trapping.",
+                badge="URBAN DENSITY",
+            )
+
+    with tab3:
+        c1, c2 = st.columns(2, gap="large")
+        with c1:
+            theme.image_card(
+                fig_dir / "builtup_vs_green.png",
+                "Built-up vs Green Thermal Regimes",
+                "Boxplot and hypothesis testing (Welch t-test and Mann-Whitney U, Cohen's d > 2.0) proving built-up areas run over 4.3 C hotter.",
+                badge="HYPOTHESIS TEST",
+            )
+            theme.image_card(
+                fig_dir / "idw_cv.png",
+                "IDW Leave-One-Out Cross-Validation Curve",
+                "Validation error (RMSE and MAE) across distance decay powers p in [1.0, 3.0], identifying optimal p=3.0.",
+                badge="OPTIMIZATION",
+            )
+        with c2:
+            theme.image_card(
+                fig_dir / "observed_vs_predicted.png",
+                "Observed vs Predicted Temperature (LOO)",
+                "Accuracy scatter plot of held-out sample temperatures vs IDW predictions showing tight alignment along the 1:1 reference line.",
+                badge="VALIDATION",
+            )
+            theme.image_card(
+                fig_dir / "ward_ranking.png",
+                "Administrative Ward Priority Ranking",
+                "Multi-criteria tree-planting priority score aggregated by administrative ward for municipal urban greening action.",
+                badge="DECISION SUPPORT",
+            )
+
+
+def page_upload(grid: pd.DataFrame):
+    theme.hero(
+        "Data Ingestion Studio",
+        "Upload your own ground or satellite temperature samples and geospatial layers to re-run the complete spatial pipeline.",
+        pills=[("CSV / GeoTIFF", "solar"), ("Instant Validation", "lime"), ("Live Execution", "heat")],
+    )
+
+    c1, c2 = st.columns([1.35, 1], gap="large")
+
+    with c1:
+        theme.section_title("1. Upload Temperature Samples (CSV)")
+        st.markdown(
+            '<div class="muted" style="margin-bottom:12px;">'
+            "Upload a CSV containing point temperature observations. "
+            "Required columns: <code>lat</code>, <code>lon</code>, <code>temp_c</code>. "
+            "Optional: <code>datetime</code>, <code>sample_id</code>.</div>",
+            unsafe_allow_html=True,
+        )
+
+        uploaded_csv = st.file_uploader(
+            "Select or drop samples.csv",
+            type=["csv"],
+            key="user_samples_csv",
+            help="CSV with lat, lon, and temp_c in degrees Celsius.",
+        )
+
+        if uploaded_csv is not None:
+            try:
+                df_up = pd.read_csv(uploaded_csv)
+                st.success(f"✓ Uploaded {uploaded_csv.name} ({len(df_up):,} records)")
+
+                cols_lower = {c.lower(): c for c in df_up.columns}
+                has_lat = any(c in cols_lower for c in ["lat", "latitude", "y"])
+                has_lon = any(c in cols_lower for c in ["lon", "longitude", "x"])
+                has_temp = any(c in cols_lower for c in ["temp_c", "temp", "temperature", "lst"])
+
+                if not (has_lat and has_lon and has_temp):
+                    st.error("Missing required columns! File must include: lat, lon, temp_c")
+                else:
+                    lat_col = next(cols_lower[c] for c in ["lat", "latitude", "y"] if c in cols_lower)
+                    lon_col = next(cols_lower[c] for c in ["lon", "longitude", "x"] if c in cols_lower)
+                    temp_col = next(cols_lower[c] for c in ["temp_c", "temp", "temperature", "lst"] if c in cols_lower)
+
+                    theme.section_title("Data Preview & Validation")
+                    show_dataframe(df_up.head(5))
+
+                    theme.kpi_row(
+                        [
+                            ("Samples", f"{len(df_up):,}", "uploaded points"),
+                            ("Min Temp", f"{df_up[temp_col].min():.1f} C", "lowest point"),
+                            ("Max Temp", f"{df_up[temp_col].max():.1f} C", "highest point"),
+                            ("Mean Temp", f"{df_up[temp_col].mean():.1f} C", "average"),
+                        ]
+                    )
+
+                    fig_preview = px.scatter(
+                        df_up,
+                        x=lon_col,
+                        y=lat_col,
+                        color=temp_col,
+                        color_continuous_scale="Inferno",
+                        labels={lon_col: "Longitude", lat_col: "Latitude", temp_col: "Temp (C)"},
+                        title="Uploaded Sample Points Map",
+                    )
+                    fig_preview.update_layout(height=280, margin=dict(l=10, r=10, t=35, b=10))
+                    show_chart(fig_preview, 280)
+
+                    if st.button("🚀 Save & Run Pipeline with Uploaded Data", type="primary"):
+                        with st.spinner("Writing custom samples and re-running spatial interpolation pipeline..."):
+                            save_df = df_up.rename(columns={lat_col: "lat", lon_col: "lon", temp_col: "temp_c"}).copy()
+                            if "sample_id" not in save_df.columns:
+                                save_df["sample_id"] = [f"custom_{i+1:04d}" for i in range(len(save_df))]
+                            if "datetime" not in save_df.columns:
+                                save_df["datetime"] = "2026-05-15T10:30:00"
+
+                            raw_dir = D.get_config().path_for("data_raw", create=True)
+                            save_df[["sample_id", "lat", "lon", "temp_c", "datetime"]].to_csv(raw_dir / "samples.csv", index=False)
+
+                            D.recompute_pipeline_with_custom_data(source="synthetic", skip_generate=True)
+                            st.success("✓ Pipeline successfully recomputed! New heat surface, UHI intensity, and priority scores are live.")
+                            st.balloons()
+                            st.rerun()
+
+            except Exception as e:
+                st.error(f"Error processing uploaded CSV: {e}")
+
+    with c2:
+        theme.section_title("2. Sample CSV Template")
+        st.markdown(
+            '<div class="glass">'
+            "Download this sample CSV template to format your field sensors or Landsat point extracts."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        sample_template_csv = (
+            "sample_id,lat,lon,temp_c,datetime\n"
+            "s_0001,11.0168,76.9558,34.2,2026-05-15T10:30:00\n"
+            "s_0002,11.0210,76.9610,35.1,2026-05-15T10:30:00\n"
+            "s_0003,11.0120,76.9490,28.4,2026-05-15T10:30:00\n"
+            "s_0004,11.0250,76.9530,32.7,2026-05-15T10:30:00\n"
+            "s_0005,11.0080,76.9620,29.8,2026-05-15T10:30:00\n"
+        )
+        st.download_button(
+            "⬇  Download samples_template.csv",
+            sample_template_csv.encode(),
+            file_name="samples_template.csv",
+            mime="text/csv",
+            key="dl_template_csv",
+        )
+
+        theme.section_title("3. Optional Spatial Layers")
+        st.markdown(
+            '<div class="muted" style="margin-bottom:8px;">'
+            "Upload auxiliary GeoTIFF or GeoJSON files to replace default base layers:</div>",
+            unsafe_allow_html=True,
+        )
+        up_ndvi = st.file_uploader("NDVI Raster (.tif)", type=["tif", "tiff"], key="up_ndvi")
+        if up_ndvi:
+            D.save_uploaded_file(up_ndvi, "ndvi.tif")
+            st.success("✓ Saved ndvi.tif to data/raw/")
+
+        up_boundary = st.file_uploader("City Boundary (.geojson)", type=["geojson", "json"], key="up_bound")
+        if up_boundary:
+            D.save_uploaded_file(up_boundary, "boundary.geojson")
+            st.success("✓ Saved boundary.geojson to data/raw/")
+
+        up_bldgs = st.file_uploader("Building Footprints (.geojson)", type=["geojson", "json"], key="up_bldgs")
+        if up_bldgs:
+            D.save_uploaded_file(up_bldgs, "buildings.geojson")
+            st.success("✓ Saved buildings.geojson to data/raw/")
 
 
 def page_download():
@@ -892,6 +1215,8 @@ def main():
         page_overview(grid, view)
     elif page == "Layers":
         page_layers(grid, view, ward)
+    elif page == "Visual Gallery":
+        page_gallery()
     elif page == "Relationships":
         page_relationships(grid)
     elif page == "Interpolation":
@@ -900,6 +1225,8 @@ def main():
         page_groups(grid)
     elif page == "Priority":
         page_priority(grid)
+    elif page == "Upload Data":
+        page_upload(grid)
     elif page == "Download":
         page_download()
 

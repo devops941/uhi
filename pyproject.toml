@@ -26,3 +26,8 @@ omit = ["src/__init__.py", "*/__init__.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
+
+[tool.pyright]
+include = ["src", "app", "tests"]
+extraPaths = [".", "src", "app"]
+
