@@ -251,33 +251,46 @@ def build_folium_map(
     import folium
     from folium.plugins import HeatMap
 
+    import warnings
+
     layers = layers or ["temperature", "hotspots"]
     grid_wgs = grid.to_crs("EPSG:4326") if not grid.empty and hasattr(grid, "to_crs") else grid
     if not grid_wgs.empty and hasattr(grid_wgs, "geometry"):
         grid_wgs = grid_wgs[~grid_wgs.geometry.is_empty].copy()
 
     if centre is None:
-        if not grid_wgs.empty and hasattr(grid_wgs, "geometry") and not grid_wgs.geometry.is_empty.all():
-            union_g = grid_wgs.geometry.union_all()
-            if not union_g.is_empty:
-                c = union_g.centroid
-                if not c.is_empty:
-                    centre = (float(c.y), float(c.x))
+        if "lat" in grid_wgs.columns and "lon" in grid_wgs.columns and not grid_wgs.empty:
+            centre = (float(grid_wgs["lat"].mean()), float(grid_wgs["lon"].mean()))
+        elif not grid_wgs.empty and hasattr(grid_wgs, "geometry") and not grid_wgs.geometry.is_empty.all():
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                union_g = grid_wgs.geometry.union_all()
+                if not union_g.is_empty:
+                    c = union_g.centroid
+                    if not c.is_empty:
+                        centre = (float(c.y), float(c.x))
         if centre is None and boundary is not None and not boundary.empty:
             b_wgs = boundary.to_crs("EPSG:4326")
             if hasattr(b_wgs, "geometry"):
                 b_wgs = b_wgs[~b_wgs.geometry.is_empty]
             if not b_wgs.empty:
-                union_b = b_wgs.geometry.union_all()
-                if not union_b.is_empty:
-                    c = union_b.centroid
-                    if not c.is_empty:
-                        centre = (float(c.y), float(c.x))
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    union_b = b_wgs.geometry.union_all()
+                    if not union_b.is_empty:
+                        c = union_b.centroid
+                        if not c.is_empty:
+                            centre = (float(c.y), float(c.x))
         if centre is None:
             centre = (11.0168, 76.9558)
 
+    # Use direct CartoDB positron tile template with attribution to avoid API key warning
     fmap = folium.Map(
-        location=centre, zoom_start=zoom, tiles="CartoDB dark_matter", control_scale=True
+        location=centre,
+        zoom_start=zoom,
+        tiles="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        control_scale=True,
     )
 
     if boundary is not None and not boundary.empty:
@@ -291,8 +304,12 @@ def build_folium_map(
                 style_function=lambda _: {"color": "#7c3aed", "weight": 2.4, "fill": False},
             ).add_to(fmap)
 
-    if not grid_wgs.empty and hasattr(grid_wgs, "geometry"):
-        cell_pts = np.column_stack([grid_wgs.geometry.centroid.y, grid_wgs.geometry.centroid.x])
+    if "lat" in grid_wgs.columns and "lon" in grid_wgs.columns and not grid_wgs.empty:
+        cell_pts = np.column_stack([grid_wgs["lat"].to_numpy(dtype=float), grid_wgs["lon"].to_numpy(dtype=float)])
+    elif not grid_wgs.empty and hasattr(grid_wgs, "geometry"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            cell_pts = np.column_stack([grid_wgs.geometry.centroid.y, grid_wgs.geometry.centroid.x])
     else:
         cell_pts = np.empty((0, 2))
 
@@ -361,78 +378,82 @@ def build_folium_map(
             ).add_to(fg)
             fg.add_to(fmap)
 
+    def _extract_pt(row):
+        if hasattr(row, "get") and row.get("lat") is not None and row.get("lon") is not None and pd.notna(row["lat"]) and pd.notna(row["lon"]):
+            return float(row["lat"]), float(row["lon"])
+        geom = getattr(row, "geometry", None)
+        if geom is not None and hasattr(geom, "is_empty") and not geom.is_empty:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                c = geom.centroid if hasattr(geom, "centroid") else geom
+                if hasattr(c, "is_empty") and not c.is_empty:
+                    return float(c.y), float(c.x)
+        return None
+
     if "hotspots" in layers and "is_hotspot" in grid_wgs.columns and not grid_wgs.empty:
         hot = grid_wgs[grid_wgs["is_hotspot"] == 1]
         cold = grid_wgs[grid_wgs.get("is_coldspot", 0) == 1]
         fg = folium.FeatureGroup(name="Hotspots / coldspots", show=False)
         for _, row in hot.iterrows():
-            geom = getattr(row, "geometry", None)
-            if geom is not None and not geom.is_empty:
-                c = geom.centroid
-                if not c.is_empty:
-                    folium.CircleMarker(
-                        [float(c.y), float(c.x)],
-                        radius=3,
-                        color="#e11d48",
-                        fill=True,
-                        fill_opacity=0.75,
-                        weight=0,
-                    ).add_to(fg)
+            pt = _extract_pt(row)
+            if pt is not None:
+                folium.CircleMarker(
+                    [pt[0], pt[1]],
+                    radius=3,
+                    color="#e11d48",
+                    fill=True,
+                    fill_opacity=0.75,
+                    weight=0,
+                ).add_to(fg)
         for _, row in cold.iterrows():
-            geom = getattr(row, "geometry", None)
-            if geom is not None and not geom.is_empty:
-                c = geom.centroid
-                if not c.is_empty:
-                    folium.CircleMarker(
-                        [float(c.y), float(c.x)],
-                        radius=3,
-                        color="#2563eb",
-                        fill=True,
-                        fill_opacity=0.75,
-                        weight=0,
-                    ).add_to(fg)
+            pt = _extract_pt(row)
+            if pt is not None:
+                folium.CircleMarker(
+                    [pt[0], pt[1]],
+                    radius=3,
+                    color="#2563eb",
+                    fill=True,
+                    fill_opacity=0.75,
+                    weight=0,
+                ).add_to(fg)
         fg.add_to(fmap)
 
     if "priority" in layers and "priority_score" in grid_wgs.columns and not grid_wgs.empty:
         top = grid_wgs.nlargest(60, "priority_score")
         fg = folium.FeatureGroup(name="Top priority cells", show=False)
         for _, row in top.iterrows():
-            geom = getattr(row, "geometry", None)
-            if geom is not None and not geom.is_empty:
-                c = geom.centroid
-                if not c.is_empty:
-                    folium.CircleMarker(
-                        [float(c.y), float(c.x)],
-                        radius=4,
-                        color="#7c3aed",
-                        fill=True,
-                        fill_opacity=0.8,
-                        weight=0,
-                        tooltip=(
-                            f"Priority {row['priority_score']:.3f}<br>"
-                            f"Temp {row.get('temp_idw', float('nan')):.1f} C<br>"
-                            f"NDVI {row.get('ndvi_mean', float('nan')):.2f}"
-                        ),
-                    ).add_to(fg)
+            pt = _extract_pt(row)
+            if pt is not None:
+                folium.CircleMarker(
+                    [pt[0], pt[1]],
+                    radius=4,
+                    color="#7c3aed",
+                    fill=True,
+                    fill_opacity=0.8,
+                    weight=0,
+                    tooltip=(
+                        f"Priority {row['priority_score']:.3f}<br>"
+                        f"Temp {row.get('temp_idw', float('nan')):.1f} C<br>"
+                        f"NDVI {row.get('ndvi_mean', float('nan')):.2f}"
+                    ),
+                ).add_to(fg)
         fg.add_to(fmap)
 
     if samples is not None and not samples.empty:
         samples_wgs = samples.to_crs("EPSG:4326")
         fg = folium.FeatureGroup(name="Temperature samples", show=False)
         for _, row in samples_wgs.iterrows():
-            geom = getattr(row, "geometry", None)
-            if geom is not None and not geom.is_empty:
-                c = geom.centroid if hasattr(geom, "centroid") else geom
-                if not c.is_empty:
-                    folium.CircleMarker(
-                        [float(c.y), float(c.x)],
-                        radius=2.6,
-                        color="#fbbf24",
-                        fill=True,
-                        fill_opacity=0.9,
-                        weight=0,
-                        tooltip=f"{row.get('sample_id', '')}: {row.get('temp_c', float('nan')):.1f} C",
-                    ).add_to(fg)
+            pt = _extract_pt(row)
+            if pt is not None:
+                folium.CircleMarker(
+                    [pt[0], pt[1]],
+                    radius=2.6,
+                    color="#fbbf24",
+                    fill=True,
+                    fill_opacity=0.9,
+                    weight=0,
+                    tooltip=f"{row.get('sample_id', '')}: {row.get('temp_c', float('nan')):.1f} C",
+                ).add_to(fg)
         fg.add_to(fmap)
 
     folium.LayerControl(collapsed=False).add_to(fmap)

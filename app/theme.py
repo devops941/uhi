@@ -1,8 +1,11 @@
-"""Shared visual theme for the Streamlit dashboard: Sun & Dry Heatwave Edition.
+"""Shared visual theme for the Streamlit dashboard: Clean, Modern & Crisp Light SaaS Edition.
 
-Design language: Deep warm obsidian base with radiant sun glow, solar corona
-gradients, heatwave thermal shimmer, glassmorphic cards with amber/crimson heat
-borders, and vivid thermal visualization styling.
+Strictly Light Theme:
+- Canvas: Pure slate-50 (#f8fafc)
+- Surfaces / Cards: Pure white (#ffffff) with subtle 1px border (#e2e8f0) and soft shadow
+- Typography: High-contrast rich slate-900 (#0f172a), slate-600 secondary (#475569)
+- Inputs, Selects, Buttons, Tables: 100% Light Theme styling (zero black patches)
+- Semantic accents: Solar heat red (#dc2626), vibrant green (#16a34a), ocean blue (#2563eb)
 """
 
 from __future__ import annotations
@@ -10,46 +13,63 @@ from __future__ import annotations
 from pathlib import Path
 import streamlit as st
 
-# ---------------------------------------------------------------- palette (Sun & Dry Thermal)
-INK = "#0c0a0d"  # deep warm obsidian
-SURFACE = "rgba(26, 20, 24, 0.78)"
-SURFACE_SOLID = "#1a1418"
-BORDER = "rgba(251, 146, 60, 0.28)"  # warm solar amber-orange border
-TEXT = "#f8fafc"
-MUTED = "#cbd5e1"
+# ---------------------------------------------------------------- palette (Crisp Modern Light)
+INK = "#f8fafc"           # soft slate-50 light background
+SURFACE = "#ffffff"       # pure white card surface
+SURFACE_SOLID = "#ffffff"
+BORDER = "#e2e8f0"        # clean slate-200 border
+BORDER_FOCUS = "#3b82f6"  # active blue border
+TEXT = "#0f172a"          # deep rich slate-900 text (maximum legibility)
+MUTED = "#64748b"         # slate-500 secondary text
+MUTED_LIGHT = "#94a3b8"
 
-# Warm solar & heat colors
-SUN_GOLD = "#fbbf24"
-SOLAR_ORANGE = "#f97316"
-HEAT_RED = "#ef4444"
-WARM_AMBER = "#d97706"
-DESERT_SAND = "#fde047"
-CRIMSON_GLOW = "#dc2626"
+# Vibrant semantic colors
+SUN_GOLD = "#d97706"      # amber-600
+SOLAR_ORANGE = "#ea580c"  # orange-600
+HEAT_RED = "#dc2626"      # red-600
+WARM_AMBER = "#b45309"    # amber-700
+CRIMSON_GLOW = "#be123c"
 
-# Contrasting vegetation & water cooling accents
-CYAN = "#06b6d4"   # water cooling
-LIME = "#84cc16"   # green vegetation
-VIOLET = "#a855f7" # spatial boundary
-ROSE = "#f97316"   # heat accent
-BLUE = "#38bdf8"
-AMBER = "#fbbf24"
+# Contrasting vegetation & cooling accents
+CYAN = "#0284c7"          # sky-600 water cooling
+LIME = "#16a34a"          # green-600 vegetation
+VIOLET = "#7c3aed"        # violet-600 spatial boundary
+ROSE = "#e11d48"          # rose-600 heat accent
+BLUE = "#2563eb"          # blue-600
+AMBER = "#d97706"
 
-# Solar heatwave gradient: Sun Gold -> Solar Flare Orange -> Thermal Heat Red
-ACCENT_GRADIENT = f"linear-gradient(135deg, {SUN_GOLD} 0%, {SOLAR_ORANGE} 50%, {HEAT_RED} 100%)"
-SUN_GLOW = "radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(249,115,22,0.18) 50%, transparent 75%)"
+# Light gradient accents
+ACCENT_GRADIENT = "linear-gradient(135deg, #ea580c 0%, #dc2626 100%)"
+PRIMARY_GRADIENT = "linear-gradient(135deg, #0284c7 0%, #2563eb 100%)"
+HERO_GRADIENT = "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 50%, #fff7ed 100%)"
 
-# Categorical palette for maps and charts
-CATEGORICAL = [SOLAR_ORANGE, CYAN, LIME, SUN_GOLD, HEAT_RED, "#f43f5e", "#10b981", "#8b5cf6"]
+# Categorical palette for light mode charts
+CATEGORICAL = [
+    "#ea580c",  # solar orange
+    "#0284c7",  # sky blue
+    "#16a34a",  # emerald green
+    "#d97706",  # amber
+    "#dc2626",  # red
+    "#7c3aed",  # violet
+    "#0891b2",  # cyan
+    "#e11d48",  # rose
+]
 
 
 def inject_theme() -> None:
-    """Inject the global solar & dry heat stylesheet once per session."""
+    """Inject the global clean and clear light stylesheet."""
     st.markdown(
         f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
-        :root {{
+        /* Force Root Light Mode Variables */
+        :root, html, body, .stApp {{
+            color-scheme: light !important;
+            --background-color: #f8fafc !important;
+            --secondary-background-color: #ffffff !important;
+            --text-color: #0f172a !important;
+            --primary-color: #2563eb !important;
             --ink: {INK};
             --surface: {SURFACE};
             --border: {BORDER};
@@ -61,27 +81,19 @@ def inject_theme() -> None:
             --warm-amber: {WARM_AMBER};
             --cyan: {CYAN};
             --lime: {LIME};
-        }}
-
-        .stApp {{
-            background:
-                /* Radiant Glowing Sun Orb in upper right */
-                radial-gradient(circle 420px at 85% 4%, rgba(254,240,138,0.38) 0%, rgba(251,191,36,0.25) 35%, rgba(249,115,22,0.14) 55%, transparent 75%),
-                /* Heatwave atmospheric thermal haze across the top */
-                radial-gradient(ellipse 1000px 420px at 50% -8%, rgba(239,68,68,0.20), transparent 65%),
-                /* Warm solar flare on left */
-                radial-gradient(circle 500px at 10% 12%, rgba(245,158,11,0.15), transparent 55%),
-                /* Arid dry earth ground reflection at bottom */
-                radial-gradient(ellipse 1100px 520px at 50% 112%, rgba(180,83,9,0.16), transparent 70%),
-                {INK} !important;
-            color: {TEXT} !important;
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }}
 
         /* Clean header styling */
-        header[data-testid="stHeader"] {{ background: transparent; }}
+        header[data-testid="stHeader"] {{
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e2e8f0 !important;
+        }}
         #MainMenu, footer {{ visibility: hidden; }}
-        .block-container {{ padding: 1.4rem 2.2rem 4rem !important; max-width: 1540px !important; }}
+        .block-container {{ padding: 1.2rem 2.0rem 3.5rem !important; max-width: 1480px !important; }}
 
         h1, h2, h3, h4 {{
             font-family: 'Space Grotesk', 'Inter', sans-serif;
@@ -89,155 +101,293 @@ def inject_theme() -> None:
             color: {TEXT} !important;
         }}
         h1 {{ font-weight: 700; }}
-        h2 {{ font-weight: 650; margin-top: 0.4rem; }}
+        h2 {{ font-weight: 650; margin-top: 0.3rem; }}
         p, span, label, li, td, th {{ font-family: 'Inter', sans-serif; color: {TEXT}; }}
-        a {{ color: {SUN_GOLD}; text-decoration: none; font-weight: 500; }}
+        a {{ color: {BLUE}; text-decoration: none; font-weight: 500; }}
         a:hover {{ color: {SOLAR_ORANGE}; text-decoration: underline; }}
 
-        /* ---------- sidebar ---------- */
+        /* ---------- sidebar (Crisp White SaaS Style) ---------- */
         section[data-testid="stSidebar"], [data-testid="stSidebar"] {{
-            background: linear-gradient(180deg, #1c1418 0%, #100a0d 100%) !important;
-            border-right: 1px solid rgba(251,146,60,0.26) !important;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            border-right: 1px solid #e2e8f0 !important;
+            box-shadow: 2px 0 8px rgba(15, 23, 42, 0.03);
         }}
-        [data-testid="stSidebar"] * {{ color: {TEXT} !important; }}
+        [data-testid="stSidebar"] * {{
+            color: {TEXT} !important;
+        }}
+        [data-testid="stSidebar"] .muted {{
+            color: {MUTED} !important;
+        }}
 
-        /* ---------- sun & dry hero banner ---------- */
+        /* ---------- neat & clear hero banner ---------- */
         .uhi-hero {{
             position: relative;
-            border-radius: 26px;
-            padding: 26px 32px;
-            background: linear-gradient(135deg, rgba(239,68,68,0.24) 0%, rgba(249,115,22,0.22) 45%, rgba(251,191,36,0.18) 100%);
-            border: 1px solid rgba(251,146,60,0.42);
-            box-shadow: 0 14px 40px rgba(239,68,68,0.14), inset 0 1px 0 rgba(255,255,255,0.15);
-            margin-bottom: 22px;
-            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 20px 24px;
+            background: {HERO_GRADIENT};
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            margin-bottom: 18px;
         }}
         .uhi-hero h1 {{
-            margin: 0 0 8px;
-            font-size: 2.15rem;
-            background: linear-gradient(120deg, #ffffff 30%, #fde047 70%, #f97316 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            margin: 0 0 6px;
+            font-size: 1.85rem;
+            color: #0f172a !important;
+            background: none !important;
+            -webkit-text-fill-color: #0f172a !important;
         }}
-        .uhi-hero p {{ margin: 0; color: #e2e8f0 !important; font-size: 1.0rem; max-width: 68ch; line-height: 1.5; }}
+        .uhi-hero p {{
+            margin: 0;
+            color: #475569 !important;
+            font-size: 0.96rem;
+            max-width: 76ch;
+            line-height: 1.5;
+        }}
         .uhi-pill {{
-            display: inline-block; margin-top: 14px; margin-right: 8px;
-            padding: 5px 14px; border-radius: 999px; font-size: 0.74rem; font-weight: 650;
-            letter-spacing: 0.04em; text-transform: uppercase;
-            background: rgba(249,115,22,0.18); border: 1px solid rgba(249,115,22,0.52);
-            color: #fed7aa !important;
+            display: inline-block; margin-top: 10px; margin-right: 6px;
+            padding: 4px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 650;
+            letter-spacing: 0.03em; text-transform: uppercase;
+            background: #f1f5f9; border: 1px solid #cbd5e1;
+            color: #334155 !important;
         }}
-        .uhi-pill.solar {{ background: rgba(251,191,36,0.22); border-color: rgba(251,191,36,0.65); color: #fef08a !important; }}
-        .uhi-pill.cyan {{ background: rgba(6,182,212,0.16); border-color: rgba(6,182,212,0.55); color: #cffafe !important; }}
-        .uhi-pill.lime {{ background: rgba(132,204,22,0.16); border-color: rgba(132,204,22,0.55); color: #ecfccb !important; }}
-        .uhi-pill.heat {{ background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.65); color: #fecaca !important; }}
-        .uhi-pill.critical {{ background: rgba(239,68,68,0.32); border-color: #ef4444; color: #fee2e2 !important; font-weight: 700; box-shadow: 0 0 12px rgba(239,68,68,0.5); }}
-        .uhi-pill.high {{ background: rgba(249,115,22,0.28); border-color: #f97316; color: #ffedd5 !important; font-weight: 700; }}
-        .uhi-pill.moderate {{ background: rgba(245,158,11,0.24); border-color: #f59e0b; color: #fef3c7 !important; }}
-        .uhi-pill.resilient {{ background: rgba(16,185,129,0.24); border-color: #10b981; color: #d1fae5 !important; }}
+        .uhi-pill.solar {{ background: #fff7ed; border-color: #fdba74; color: #c2410c !important; }}
+        .uhi-pill.cyan {{ background: #f0f9ff; border-color: #7dd3fc; color: #0369a1 !important; }}
+        .uhi-pill.lime {{ background: #f0fdf4; border-color: #86efac; color: #15803d !important; }}
+        .uhi-pill.heat {{ background: #fef2f2; border-color: #fca5a5; color: #b91c1c !important; }}
+        .uhi-pill.critical {{ background: #fee2e2; border-color: #ef4444; color: #991b1b !important; font-weight: 700; }}
+        .uhi-pill.high {{ background: #ffedd5; border-color: #f97316; color: #9a3412 !important; font-weight: 700; }}
+        .uhi-pill.moderate {{ background: #fef3c7; border-color: #f59e0b; color: #92400e !important; }}
+        .uhi-pill.resilient {{ background: #dcfce7; border-color: #22c55e; color: #166534 !important; }}
 
-        /* ---------- KPI cards ---------- */
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; margin: 6px 0 22px; }}
+        /* ---------- KPI cards (Clean White Elevation) ---------- */
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin: 4px 0 18px; }}
         .kpi {{
-            border-radius: 20px; padding: 18px 20px;
-            background: {SURFACE};
-            border: 1px solid {BORDER};
-            backdrop-filter: blur(16px);
-            box-shadow: 0 8px 26px rgba(0,0,0,0.32);
-            transition: transform 180ms cubic-bezier(.2,.7,.3,1), border-color 180ms, box-shadow 180ms;
+            border-radius: 14px; padding: 16px 18px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            transition: transform 160ms ease, box-shadow 160ms ease;
         }}
         .kpi:hover {{
-            transform: translateY(-4px);
-            border-color: rgba(251,191,36,0.6);
-            box-shadow: 0 14px 34px rgba(249,115,22,0.24);
+            transform: translateY(-2px);
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
         }}
-        .kpi .k-label {{ font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.09em; color: {MUTED} !important; font-weight: 650; }}
-        .kpi .k-value {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.82rem; font-weight: 700; margin-top: 6px;
-                         background: {ACCENT_GRADIENT}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
-        .kpi .k-sub {{ font-size: 0.78rem; color: #94a3b8 !important; margin-top: 4px; }}
+        .kpi .k-label {{
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: #64748b !important; font-weight: 650;
+        }}
+        .kpi .k-value {{
+            font-family: 'Space Grotesk', sans-serif; font-size: 1.70rem; font-weight: 700; margin-top: 4px;
+            color: #0f172a !important;
+            background: {ACCENT_GRADIENT}; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }}
+        .kpi .k-sub {{ font-size: 0.76rem; color: #64748b !important; margin-top: 2px; }}
 
-        /* ---------- glass cards ---------- */
-        .glass {{
-            border-radius: 22px; padding: 22px 24px; background: {SURFACE};
-            border: 1px solid {BORDER}; backdrop-filter: blur(16px); margin-bottom: 18px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+        /* ---------- clean cards ---------- */
+        .glass, .clean-card {{
+            border-radius: 16px; padding: 20px 22px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
         }}
-        .glass h3 {{ margin-top: 0; color: #fff !important; }}
+        .glass h3, .clean-card h3 {{ margin-top: 0; color: #0f172a !important; }}
         .section-title {{
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.22rem;
+            font-size: 1.15rem;
             font-weight: 650;
-            margin: 6px 0 12px;
+            margin: 8px 0 12px;
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #fff !important;
+            color: #0f172a !important;
         }}
 
-        /* ---------- image card gallery ---------- */
-        .image-card {{
-            border-radius: 20px;
-            padding: 16px 18px;
-            background: linear-gradient(180deg, rgba(32,24,30,0.85) 0%, rgba(20,15,20,0.92) 100%);
-            border: 1px solid rgba(251,146,60,0.32);
-            margin-bottom: 20px;
-            transition: transform 200ms ease, box-shadow 200ms ease;
+        /* ---------- controls, inputs, selects (100% Crisp Light SaaS Styling) ---------- */
+        /* Selectbox container and wrapper */
+        div[data-testid="stSelectbox"],
+        div[data-testid="stSelectbox"] > div,
+        div[data-baseweb="select"],
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="select"] div {{
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+            border-radius: 8px !important;
         }}
-        .image-card:hover {{
-            transform: translateY(-3px);
-            border-color: rgba(251,191,36,0.65);
-            box-shadow: 0 12px 36px rgba(249,115,22,0.22);
+        div[data-baseweb="select"] * {{
+            color: #0f172a !important;
         }}
-
-        /* ---------- metrics / tabs ---------- */
-        div[data-testid="stMetricValue"] {{ font-family: 'Space Grotesk', sans-serif; color: {SUN_GOLD} !important; }}
-        div[data-testid="stMetric"] {{
-            background: {SURFACE}; border: 1px solid {BORDER};
-            border-radius: 18px; padding: 12px 16px; backdrop-filter: blur(12px);
-        }}
-        .stTabs [data-baseweb="tab-list"] {{ gap: 8px; border-bottom: 1px solid {BORDER}; }}
-        .stTabs [data-baseweb="tab"] {{
-            height: 42px; border-radius: 12px 12px 0 0; padding: 0 18px;
-            color: {MUTED} !important; font-weight: 600;
-        }}
-        .stTabs [aria-selected="true"] {{
-            background: linear-gradient(180deg, rgba(249,115,22,0.24) 0%, transparent 100%);
-            color: #fff !important;
-            border-bottom: 2px solid {SOLAR_ORANGE};
+        div[data-baseweb="select"] svg {{
+            fill: #0f172a !important;
+            color: #0f172a !important;
         }}
 
-        /* ---------- controls ---------- */
+        /* Dropdown popover menu */
+        div[data-baseweb="popover"],
+        div[data-baseweb="popover"] *,
+        ul[data-baseweb="menu"],
+        ul[data-baseweb="menu"] *,
+        li[data-baseweb="menu-item"],
+        div[role="listbox"] {{
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+        }}
+        ul[data-baseweb="menu"] {{
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.10) !important;
+            border-radius: 8px !important;
+        }}
+        li[data-baseweb="menu-item"]:hover,
+        li[data-baseweb="menu-item"][aria-selected="true"] {{
+            background-color: #f1f5f9 !important;
+            background: #f1f5f9 !important;
+            color: #2563eb !important;
+        }}
+
+        /* Text and Number Inputs */
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stNumberInput"] input,
+        div[data-baseweb="input"],
+        div[data-baseweb="input"] input,
+        div[data-baseweb="base-input"],
+        input[type="text"],
+        input[type="number"] {{
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+        }}
+
+        /* NumberInput stepper buttons (+ / -) */
+        div[data-testid="stNumberInput"] button,
+        button[data-testid*="stNumberInput"],
+        div[data-baseweb="input"] button,
+        div[data-baseweb="input"] ~ div button {{
+            background-color: #f1f5f9 !important;
+            background: #f1f5f9 !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+        }}
+        div[data-testid="stNumberInput"] button:hover,
+        button[data-testid*="stNumberInput"]:hover {{
+            background-color: #e2e8f0 !important;
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+        }}
+        div[data-testid="stNumberInput"] button svg,
+        button[data-testid*="stNumberInput"] svg {{
+            fill: #0f172a !important;
+            color: #0f172a !important;
+        }}
+
+        /* Sliders */
+        .stSlider [data-baseweb="slider"] div[role="slider"] {{
+            background: #2563eb !important;
+            border: 2px solid #ffffff !important;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4) !important;
+        }}
+        .stSlider [data-baseweb="slider"] * {{
+            color: #0f172a !important;
+        }}
+
+        /* Buttons */
         .stButton > button, .stDownloadButton > button {{
-            border-radius: 14px; border: 1px solid rgba(251,191,36,0.5);
-            background: linear-gradient(120deg, rgba(245,158,11,0.35), rgba(239,68,68,0.28));
-            color: #ffffff !important; font-weight: 650; padding: 0.52rem 1.2rem;
-            box-shadow: 0 4px 18px rgba(245,158,11,0.22);
-            transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+            border-radius: 8px !important;
+            border: none !important;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            padding: 0.52rem 1.3rem !important;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25) !important;
+            transition: all 160ms ease !important;
         }}
         .stButton > button:hover, .stDownloadButton > button:hover {{
-            transform: translateY(-2px); box-shadow: 0 10px 32px rgba(249,115,22,0.45);
-            border-color: rgba(251,191,36,0.9);
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.38) !important;
             color: #ffffff !important;
         }}
-        div[data-baseweb="select"] > div, .stTextInput input, .stNumberInput input {{
-            background: rgba(28,22,26,0.85) !important; border-radius: 12px !important;
-            border-color: {BORDER} !important; color: {TEXT} !important;
-        }}
-        .stSlider [data-baseweb="slider"] div[role="slider"] {{ background: {SUN_GOLD}; box-shadow: 0 0 12px rgba(251,191,36,0.8); }}
 
-        /* ---------- dataframes ---------- */
-        div[data-testid="stDataFrame"] {{
-            border-radius: 16px; overflow: hidden;
-            border: 1px solid {BORDER};
-            box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+        /* Dataframes & Tables */
+        div[data-testid="stDataFrame"],
+        div[data-testid="stTable"] {{
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0 !important;
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+        }}
+        div[data-testid="stDataFrame"] *,
+        div[data-testid="stTable"] * {{
+            color: #0f172a !important;
         }}
 
-        /* ---------- misc ---------- */
-        .legend-row {{ display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }}
-        .legend-dot {{ display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; color: #cbd5e1 !important; font-weight: 500; }}
-        .dot {{ width: 11px; height: 11px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }}
-        .muted, .muted * {{ color: {MUTED} !important; font-size: 0.86rem; }}
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            background: transparent !important;
+        }}
+        .stTabs [data-baseweb="tab"] {{
+            height: 42px;
+            border-radius: 8px 8px 0 0;
+            padding: 0 18px;
+            color: #64748b !important;
+            font-weight: 600;
+            background: transparent !important;
+        }}
+        .stTabs [aria-selected="true"] {{
+            background: #ffffff !important;
+            color: #2563eb !important;
+            border: 1px solid #e2e8f0;
+            border-bottom: 2px solid #2563eb !important;
+            box-shadow: 0 -2px 6px rgba(15, 23, 42, 0.02);
+        }}
+
+        /* Radio buttons in sidebar */
+        [data-testid="stSidebar"] div[role="radiogroup"] label {{
+            background: #ffffff !important;
+            border: 1px solid #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all 120ms ease;
+        }}
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {{
+            background: #f8fafc !important;
+            border-color: #cbd5e1;
+        }}
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {{
+            background: #eff6ff !important;
+            border-color: #93c5fd !important;
+        }}
+
+        /* Expanders */
+        div[data-testid="stExpander"] {{
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+            margin-bottom: 14px;
+        }}
+        div[data-testid="stExpander"] summary {{
+            color: #0f172a !important;
+            font-weight: 600;
+        }}
+
+        /* Misc */
+        .legend-row {{ display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }}
+        .legend-dot {{ display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem; color: #475569 !important; font-weight: 500; }}
+        .dot {{ width: 10px; height: 10px; border-radius: 50%; display: inline-block; }}
+        .muted, .muted * {{ color: {MUTED} !important; font-size: 0.85rem; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -245,7 +395,7 @@ def inject_theme() -> None:
 
 
 def hero(title: str, subtitle: str, pills: list[tuple[str, str]] | None = None) -> None:
-    """Render the solar radiant hero header."""
+    """Render the clean and clear hero header."""
     pill_html = ""
     for text, tone in pills or []:
         cls = "uhi-pill" + (f" {tone}" if tone else "")
@@ -263,7 +413,7 @@ def hero(title: str, subtitle: str, pills: list[tuple[str, str]] | None = None) 
 
 
 def kpi_row(items: list[tuple[str, str, str]]) -> None:
-    """Render a responsive row of KPI cards: (label, value, sub)."""
+    """Render a responsive row of clean white KPI cards: (label, value, sub)."""
     cards = "".join(
         f'<div class="kpi"><div class="k-label">{label}</div>'
         f'<div class="k-value">{value}</div>'
@@ -277,36 +427,59 @@ def section_title(text: str) -> None:
     st.markdown(f'<div class="section-title">{text}</div>', unsafe_allow_html=True)
 
 
-def glass_open() -> None:
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
+def clean_card_open() -> None:
+    st.markdown('<div class="clean-card">', unsafe_allow_html=True)
 
 
-def glass_close() -> None:
+def clean_card_close() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 def legend(items: list[tuple[str, str]]) -> None:
     """Small colour-key row: (colour, label)."""
     html = "".join(
-        f'<span class="legend-dot"><span class="dot" style="background:{c}; color:{c}"></span>{label}</span>'
+        f'<span class="legend-dot"><span class="dot" style="background:{c}; border: 1px solid rgba(0,0,0,0.1)"></span>{label}</span>'
         for c, label in items
     )
     st.markdown(f'<div class="legend-row">{html}</div>', unsafe_allow_html=True)
 
 
+def guide_box(title: str, items: list[tuple[str, str]], icon: str = "💡") -> None:
+    """Render a simple, clean concept explanation box in light mode."""
+    body = "".join(
+        f'<div style="margin-bottom:6px;"><strong style="color:#0f172a;">{h}:</strong> '
+        f'<span style="color:#334155;">{desc}</span></div>'
+        for h, desc in items
+    )
+    st.markdown(
+        f"""
+        <div class="clean-card" style="border-left: 4px solid #2563eb; padding: 14px 18px; margin-bottom: 16px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span style="font-size:1.15rem;">{icon}</span>
+            <span style="font-family:'Space Grotesk',sans-serif; font-size:0.98rem; font-weight:700; color:#0f172a;">{title}</span>
+          </div>
+          <div style="font-size:0.88rem; line-height:1.5;">
+            {body}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def image_card(img_path: str | Path, title: str, description: str, badge: str = "MAP") -> None:
-    """Render an image inside a stylized solar glass card with captions and download."""
+    """Render an image inside a clean white card with captions and download."""
     p = Path(img_path)
     if not p.exists():
         return
     st.markdown(
         f"""
-        <div class="image-card">
+        <div class="clean-card" style="padding:14px 16px; margin-bottom:16px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-family:'Space Grotesk',sans-serif; font-size:1.08rem; font-weight:700; color:#fff;">{title}</span>
+                <span style="font-family:'Space Grotesk',sans-serif; font-size:1.02rem; font-weight:700; color:#0f172a;">{title}</span>
                 <span class="uhi-pill solar" style="margin:0; font-size:0.68rem;">{badge}</span>
             </div>
-            <p style="color:#cbd5e1 !important; font-size:0.86rem; margin-bottom:12px; line-height:1.4;">{description}</p>
+            <p style="color:#475569 !important; font-size:0.84rem; margin-bottom:10px; line-height:1.4;">{description}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -321,27 +494,4 @@ def image_card(img_path: str | Path, title: str, description: str, badge: str = 
         file_name=p.name,
         mime="image/png",
         key=f"dl_card_{p.stem}",
-    )
-
-
-def guide_box(title: str, items: list[tuple[str, str]], icon: str = "💡") -> None:
-    """Render a student-friendly concept explanation box with bullet points."""
-    body = "".join(
-        f'<div style="margin-bottom:8px;"><strong style="color:#fbbf24;">{h}:</strong> '
-        f'<span style="color:#e2e8f0;">{desc}</span></div>'
-        for h, desc in items
-    )
-    st.markdown(
-        f"""
-        <div class="glass" style="border-left: 4px solid #f59e0b; padding: 16px 20px; margin-bottom: 20px; background: rgba(30, 22, 26, 0.72);">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-            <span style="font-size:1.25rem;">{icon}</span>
-            <span style="font-family:'Space Grotesk',sans-serif; font-size:1.04rem; font-weight:700; color:#fff;">{title}</span>
-          </div>
-          <div style="font-size:0.90rem; line-height:1.55;">
-            {body}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
     )

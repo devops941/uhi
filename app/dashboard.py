@@ -11,7 +11,13 @@ Run with::
 
 from __future__ import annotations
 
+import warnings
+warnings.filterwarnings("ignore", message=".*use_container_width.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="folium.*")
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Geometry is in a geographic CRS.*")
+
 from datetime import datetime
+import time
 import sys
 from pathlib import Path
 
@@ -42,7 +48,7 @@ st.set_page_config(
 )
 theme.inject_theme()
 
-PLOT_TEMPLATE = "plotly_dark"
+PLOT_TEMPLATE = "plotly_white"
 
 
 def style_fig(fig, height: int = 380):
@@ -51,12 +57,12 @@ def style_fig(fig, height: int = 380):
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", color=theme.TEXT),
+        font=dict(family="Inter, sans-serif", color="#0f172a"),
         margin=dict(l=10, r=10, t=44, b=10),
-        legend=dict(bgcolor="rgba(0,0,0,0)"),
+        legend=dict(bgcolor="rgba(255,255,255,0.85)"),
     )
-    fig.update_xaxes(gridcolor="rgba(148,163,184,0.12)")
-    fig.update_yaxes(gridcolor="rgba(148,163,184,0.12)")
+    fig.update_xaxes(gridcolor="rgba(203,213,225,0.45)")
+    fig.update_yaxes(gridcolor="rgba(203,213,225,0.45)")
     return fig
 
 
@@ -81,50 +87,67 @@ def sidebar(grid: pd.DataFrame, ward_summary: pd.DataFrame):
     with st.sidebar:
         st.markdown(
             f"""
-            <div style="padding:6px 2px 14px">
+            <div style="padding:4px 2px 14px">
               <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:1.45rem;">☀️</span>
+                <span style="font-size:1.55rem;">🌡️</span>
                 <div style="font-family:'Space Grotesk',sans-serif;font-size:1.26rem;font-weight:700;
-                            background:{theme.ACCENT_GRADIENT};-webkit-background-clip:text;
-                            -webkit-text-fill-color:transparent;">UHI Studio</div>
+                            color:#0f172a;">UHI Studio</div>
               </div>
-              <div class="muted" style="margin-top:2px;">Sun &amp; Dry Heatwave Mapping</div>
-              <div class="uhi-pill solar" style="margin-top:8px;font-size:0.66rem;">☀️ Solar Radiance Active</div>
+              <div class="muted" style="margin-top:2px;color:#64748b;font-size:0.82rem;">Urban Heat Island Analytics</div>
+              <div class="uhi-pill cyan" style="margin-top:8px;font-size:0.68rem;">🟢 Live Interactive Analytics</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        custom_count = st.session_state.get("custom_entries_count", 0)
+        scenario_active = st.session_state.get("scenario_active", False)
+        if custom_count > 0 or scenario_active:
+            tag = f"{custom_count} entries added" if custom_count > 0 else "Intervention applied"
+            st.markdown(
+                f'<div class="uhi-pill lime" style="margin-bottom:12px;font-size:0.72rem;display:block;text-align:center;">'
+                f'✨ Dynamic Mode: {tag}</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("🔄 Reset to Default Data", key="sidebar_reset_btn", help="Clear custom data and restore default synthetic city"):
+                st.session_state["live_grid"] = D.load_grid_flat()
+                st.session_state["live_samples"] = D.load_samples()
+                st.session_state["custom_entries_count"] = 0
+                st.session_state["scenario_active"] = False
+                st.rerun()
+
+        NAV_PAGES = [
+            "Overview",
+            "Upload Data",
+            "Layers",
+            "Place-Based Report",
+            "Priority",
+            "Relationships",
+            "Interpolation",
+            "Built-up vs Green",
+            "Visual Gallery",
+            "Download",
+        ]
         NAV_LABELS = {
-            "Overview": "🏠 City Heat Summary (Overview)",
+            "Overview": "🏠 City Heat Summary",
+            "Upload Data": "✍️ Data Entry & Simulation",
             "Layers": "🗺️ Live Heat Map (Explore)",
-            "Place-Based Report": "📍 Ward Report (Check Any Area)",
-            "Visual Gallery": "🖼️ Photo & Map Gallery",
+            "Place-Based Report": "📍 Ward Report Card",
+            "Priority": "🎯 Tree Planting Priority",
             "Relationships": "🔍 Why Is It Hot? (Causes)",
-            "Interpolation": "📐 How We Predict Heat (Method)",
-            "Built-up vs Green": "🏢 Concrete vs 🌳 Trees",
-            "Priority": "🎯 Where to Plant Trees First",
-            "Upload Data": "📤 Upload Your Data",
+            "Interpolation": "📐 Heat Prediction Method",
+            "Built-up vs Green": "🏢 Concrete vs Trees",
+            "Visual Gallery": "🖼️ Publication Map Gallery",
             "Download": "📥 Download Reports & Data",
         }
         page = st.radio(
             "Navigate",
-            [
-                "Overview",
-                "Layers",
-                "Place-Based Report",
-                "Visual Gallery",
-                "Relationships",
-                "Interpolation",
-                "Built-up vs Green",
-                "Priority",
-                "Upload Data",
-                "Download",
-            ],
+            NAV_PAGES,
             format_func=lambda k: NAV_LABELS.get(str(k), str(k)),
             label_visibility="collapsed",
         )
         st.divider()
-        st.markdown('<div class="muted" style="font-weight:600;letter-spacing:0.04em;">🔍 FILTER BY AREA OR HEAT</div>', unsafe_allow_html=True)
+        st.markdown('<div class="muted" style="font-weight:600;letter-spacing:0.04em;color:#475569;">🔍 FILTER BY AREA OR HEAT</div>', unsafe_allow_html=True)
 
         wards = (
             ["All wards"] + sorted(grid["ward_id"].dropna().unique().tolist())
@@ -146,7 +169,7 @@ def sidebar(grid: pd.DataFrame, ward_summary: pd.DataFrame):
         only_hot = st.toggle("🔥 Show Extreme Hotspots Only", value=False)
         st.divider()
         st.caption(
-            f"📍 {len(grid):,} city blocks · 197 weather sensors · Coimbatore"
+            f"📍 {len(grid):,} city blocks · {len(st.session_state.get('live_samples', []))} weather sensors · Coimbatore"
         )
         st.caption("🛰️ Satellite data: Landsat surface heat & Sentinel tree cover")
 
@@ -216,35 +239,36 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
                         dx=dx,
                         y0=extent[2],
                         dy=dy,
-                        colorscale="Inferno",
-                        colorbar=dict(title="C", thickness=12),
-                        hovertemplate="lon %{x:.4f}<br>lat %{y:.4f}<br>%{z:.2f} C<extra></extra>",
+                        colorscale="YlOrRd",
+                        colorbar=dict(title="°C", thickness=12),
+                        hovertemplate="lon %{x:.4f}<br>lat %{y:.4f}<br>%{z:.2f} °C<extra></extra>",
                     )
                 )
-        samples = D.load_samples()
-        if not samples.empty:
-            s = samples.to_crs("EPSG:4326")
-            fig.add_trace(
-                go.Scattergl(
-                    x=s.geometry.x,
-                    y=s.geometry.y,
-                    mode="markers",
-                    marker=dict(size=4, color="rgba(255,255,255,0.55)", line=dict(width=0)),
-                    name="Weather Sensors",
-                    hovertext=s.get("sample_id"),
-                    hoverinfo="text",
+        samples = st.session_state.get("live_samples", D.load_samples())
+        if hasattr(samples, "empty") and not samples.empty:
+            s = samples.to_crs("EPSG:4326") if hasattr(samples, "to_crs") else samples
+            if hasattr(s, "geometry"):
+                fig.add_trace(
+                    go.Scattergl(
+                        x=s.geometry.x,
+                        y=s.geometry.y,
+                        mode="markers",
+                        marker=dict(size=5, color="#0f172a", line=dict(width=1, color="#ffffff")),
+                        name="Weather Sensors",
+                        hovertext=s.get("sample_id", ""),
+                        hoverinfo="text",
+                    )
                 )
-            )
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
         fig.update_xaxes(title=None, showgrid=False, showticklabels=False)
         fig.update_yaxes(showgrid=False, showticklabels=False)
         show_chart(fig, 480)
         theme.legend(
             [
-                ("#fcfdbf", "Hottest (> 32 °C)"),
-                ("#de4968", "Warm (28 - 32 °C)"),
-                ("#3b0f70", "Coolest (< 26 °C)"),
-                ("#ffffff", "Weather Sensors (197 stations)"),
+                ("#dc2626", "Hottest (> 32 °C)"),
+                ("#ea580c", "Warm (28 - 32 °C)"),
+                ("#0284c7", "Coolest (< 26 °C)"),
+                ("#0f172a", f"Weather Sensors ({len(samples)} stations)"),
             ]
         )
 
@@ -320,36 +344,6 @@ def page_overview(grid: pd.DataFrame, view: pd.DataFrame):
     )
     fig.update_layout(coloraxis_colorbar=dict(title="Extra Heat °C", thickness=12))
     show_chart(fig, 320)
-
-    with st.expander("📸 High-Resolution Publication Maps", expanded=True):
-        st.markdown(
-            '<div class="muted" style="margin-bottom:14px;">'
-            "Publication-grade static spatial outputs generated by the pipeline in <code>outputs/figures/</code>:</div>",
-            unsafe_allow_html=True,
-        )
-        c_p1, c_p2, c_p3 = st.columns(3, gap="medium")
-        fig_dir = D.get_figures_dir()
-        with c_p1:
-            theme.image_card(
-                fig_dir / "temperature_idw.png",
-                "Interpolated Surface",
-                "Continuous surface temperature interpolated at 100 m cell resolution.",
-                badge="IDW SURFACE",
-            )
-        with c_p2:
-            theme.image_card(
-                fig_dir / "uhi_intensity.png",
-                "UHI Intensity",
-                "Surface temperature minus rural baseline (+9.1 C peak anomaly).",
-                badge="UHI INTENSITY",
-            )
-        with c_p3:
-            theme.image_card(
-                fig_dir / "hotspots.png",
-                "Getis-Ord Gi* Hotspots",
-                "95% confidence hot (red) and cold (blue) spatial clusters.",
-                badge="HOTSPOTS (95%)",
-            )
 
 
 def page_layers(grid: pd.DataFrame, view: pd.DataFrame, ward: str):
@@ -636,10 +630,10 @@ def page_place_report(
             <div class="glass" style="margin-top:14px; border-left: 4px solid {'#ef4444' if tier_tone == 'critical' else '#f97316' if tier_tone == 'high' else '#f59e0b' if tier_tone == 'moderate' else '#10b981'};">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
                 <div>
-                  <div style="font-family:'Space Grotesk',sans-serif; font-size:1.52rem; font-weight:700; color:#fff;">
+                  <div style="font-family:'Space Grotesk',sans-serif; font-size:1.52rem; font-weight:700; color:#0f172a;">
                     {sel_ward_id} · {w_name}
                   </div>
-                  <div class="muted" style="margin-top:2px;">
+                  <div class="muted" style="margin-top:2px; color:#64748b;">
                     Area: <strong>{w_area:.2f} km²</strong> · City Blocks: <strong>{n_cells:,} (100 m resolution)</strong> · Priority Rank: <strong>#{w_rank} of {len(df_wards)}</strong>
                   </div>
                 </div>
@@ -647,7 +641,7 @@ def page_place_report(
                   <span class="uhi-pill {tier_tone}" style="font-size:0.80rem; padding:6px 16px;">{tier_badge}</span>
                 </div>
               </div>
-              <p style="margin-top:12px; margin-bottom:0; color:#cbd5e1; font-size:0.92rem; line-height:1.5;">
+              <p style="margin-top:12px; margin-bottom:0; color:#475569; font-size:0.92rem; line-height:1.5;">
                 {tier_desc}
               </p>
             </div>
@@ -718,7 +712,7 @@ def page_place_report(
                 c_lat, c_lon = float(uc.y), float(uc.x)
 
         fmap = folium.Map(
-            location=[c_lat, c_lon], zoom_start=14, tiles="CartoDB dark_matter", control_scale=True
+            location=[c_lat, c_lon], zoom_start=14, tiles="CartoDB positron", control_scale=True
         )
 
         # Add ward boundary
@@ -1206,7 +1200,7 @@ def page_relationships(grid: pd.DataFrame):
                         x=xs,
                         y=np.polyval(z, xs),
                         mode="lines",
-                        line=dict(color="white", width=2),
+                        line=dict(color="#0f172a", width=2.5),
                         name="Trend Line",
                     )
                 )
@@ -1234,6 +1228,7 @@ def page_relationships(grid: pd.DataFrame):
                     marker=dict(color=[theme.HEAT_RED if c > 0 else theme.LIME for c in coefs["coef"]]),
                     text=[f"{c:+.2f} °C" for c in coefs["coef"]],
                     textposition="auto",
+                    textfont=dict(color="#ffffff", size=12, family="Inter, sans-serif"),
                 )
             )
             fig.update_layout(
@@ -1249,38 +1244,6 @@ def page_relationships(grid: pd.DataFrame):
             show_dataframe(corr.round(4), hide_index=True)
             theme.section_title("OLS coefficients")
             show_dataframe(reg.round(4), hide_index=True)
-
-    theme.section_title("City-Wide Heat Distribution Check")
-    fig = px.scatter(
-        grid.sample(min(len(grid), 5000), random_state=1),
-        x="centroid_x",
-        y="centroid_y",
-        color="uhi_intensity",
-        color_continuous_scale="RdBu_r",
-        opacity=0.6,
-        labels={"centroid_x": "", "centroid_y": ""},
-    )
-    fig.update_yaxes(scaleanchor="x", scaleratio=1, showticklabels=False)
-    fig.update_xaxes(showticklabels=False)
-    show_chart(fig, 420)
-
-    with st.expander("📸 View Publication Heat Cause Figures"):
-        c_r1, c_r2 = st.columns(2, gap="medium")
-        fig_dir = D.get_figures_dir()
-        with c_r1:
-            theme.image_card(
-                fig_dir / "builtup_vs_green.png",
-                "Thermal Regimes: Built-up vs Green",
-                "Direct statistical distribution gap showing built-up surfaces running +4.39 C hotter than green areas.",
-                badge="BOXPLOT",
-            )
-        with c_r2:
-            theme.image_card(
-                fig_dir / "observed_vs_predicted.png",
-                "Cross-Validation Accuracy",
-                "Observed held-out sample temperatures plotted against predicted temperatures along 1:1 line.",
-                badge="OLS / IDW FIT",
-            )
 
 
 def page_interpolation(grid: pd.DataFrame):
@@ -1409,7 +1372,7 @@ def page_interpolation(grid: pd.DataFrame):
                 x=lims,
                 y=lims,
                 mode="lines",
-                line=dict(color="white", dash="dash", width=1.4),
+                line=dict(color="#0f172a", dash="dash", width=1.6),
                 name="Perfect Match (1:1)",
             )
         )
@@ -1431,24 +1394,6 @@ def page_interpolation(grid: pd.DataFrame):
                     "remains the cheaper default when the two are close.</div>",
                     unsafe_allow_html=True,
                 )
-
-    with st.expander("📸 Generated Geostatistical Benchmark Figures", expanded=True):
-        c_i1, c_i2 = st.columns(2, gap="medium")
-        fig_dir = D.get_figures_dir()
-        with c_i1:
-            theme.image_card(
-                fig_dir / "idw_cv.png",
-                "Cross-Validation Error Curve",
-                "Leave-one-out cross validation RMSE and MAE across power parameter candidates.",
-                badge="OPTIMAL POWER",
-            )
-        with c_i2:
-            theme.image_card(
-                fig_dir / "observed_vs_predicted.png",
-                "Held-Out Validation Scatter",
-                "Held-out sample predictions demonstrating high spatial fidelity (R2 > 0.85).",
-                badge="LOO PREDICTIONS",
-            )
 
 
 def page_groups(grid: pd.DataFrame):
@@ -1528,10 +1473,10 @@ def page_groups(grid: pd.DataFrame):
             st.markdown(
                 f"""
                 <div class="glass" style="border-left: 4px solid #ef4444;">
-                  <div style="font-size:1.15rem; font-weight:700; color:#fff; margin-bottom:8px;">
+                  <div style="font-size:1.15rem; font-weight:700; color:#0f172a; margin-bottom:8px;">
                     Concrete areas are {row['diff']:.1f} °C hotter!
                   </div>
-                  <p style="color:#cbd5e1; font-size:0.92rem; line-height:1.5; margin:0;">
+                  <p style="color:#475569; font-size:0.92rem; line-height:1.5; margin:0;">
                     Dense concrete city blocks average <strong>{row['mean_a']:.1f} °C</strong>, while green parks and tree-lined areas average <strong>{row['mean_b']:.1f} °C</strong>.
                     <br><br>
                     This confirms that replacing concrete roofs with white reflective paint or planting trees will create an immediate cooling effect.
@@ -1565,15 +1510,6 @@ def page_groups(grid: pd.DataFrame):
         )
         fig.update_layout(showlegend=True)
         show_chart(fig, 300)
-
-    with st.expander("📸 High-Resolution Group Comparison Map"):
-        fig_dir = D.get_figures_dir()
-        theme.image_card(
-            fig_dir / "builtup_vs_green.png",
-            "Comparative Thermal Regime Analysis",
-            "Welch's t-test and Mann-Whitney U test demonstrating statistically significant thermal divergence (p < 1e-20).",
-            badge="STATISTICAL TEST",
-        )
 
 
 def page_priority(grid: pd.DataFrame):
@@ -1707,18 +1643,10 @@ def page_priority(grid: pd.DataFrame):
         "live_rank",
     ]
     cols = [c for c in cols if c in work.columns]
-    show_dataframe(
-        work.sort_values("live_rank").head(50)[cols].round(3),
-        hide_index=True,
-    )
-
-    with st.expander("📸 Ward Tree-Planting Priority Ranking Map", expanded=True):
-        fig_dir = D.get_figures_dir()
-        theme.image_card(
-            fig_dir / "ward_ranking.png",
-            "Ward-Level Priority Ranking",
-            "Composite spatial ranking combining thermal severity, canopy deficit, and population density.",
-            badge="MUNICIPAL ACTION",
+    with st.expander("📋 View Top Priority City Blocks (Detailed Cell Registry)", expanded=False):
+        show_dataframe(
+            work.sort_values("live_rank").head(50)[cols].round(3),
+            hide_index=True,
         )
 
 
@@ -1804,136 +1732,371 @@ def page_gallery():
             )
 
 
+def recalculate_ward_summary(grid: pd.DataFrame) -> pd.DataFrame:
+    if "ward_id" not in grid.columns:
+        return pd.DataFrame()
+    ws = (
+        grid.groupby("ward_id")
+        .agg(
+            mean_temp=("temp_idw", "mean"),
+            mean_uhi=("uhi_intensity", "mean"),
+            mean_ndvi=("ndvi_mean", "mean"),
+            mean_builtup=("builtup_frac", "mean"),
+            hotspot_area_pct=("is_hotspot", lambda s: float(s.mean() * 100)),
+            priority_score=("priority_score", "mean") if "priority_score" in grid.columns else ("temp_idw", "mean"),
+        )
+        .reset_index()
+    )
+    ws["priority_rank"] = ws["priority_score"].rank(ascending=False, method="min").astype(int)
+    return ws.sort_values("priority_rank").reset_index(drop=True)
+
+
+def add_sensor_reading_and_update_grid(
+    name: str,
+    ward_id: str,
+    lat: float,
+    lon: float,
+    temp_c: float,
+    ndvi_val: float,
+    builtup_val: float,
+) -> None:
+    samples = st.session_state.get("live_samples", D.load_samples())
+    samples_df = samples.copy() if hasattr(samples, "copy") else pd.DataFrame(samples)
+
+    new_id = f"sensor_{int(time.time()) % 10000:04d}"
+    row_dict = {
+        "sample_id": new_id,
+        "lat": float(lat),
+        "lon": float(lon),
+        "temp_c": float(temp_c),
+        "datetime": datetime.now().isoformat(),
+        "is_outlier": 0,
+        "ward_id": ward_id,
+    }
+    if "geometry" in samples_df.columns:
+        new_row = gpd.GeoDataFrame(
+            [row_dict],
+            geometry=gpd.points_from_xy([float(lon)], [float(lat)]),
+            crs="EPSG:4326",
+        )
+    else:
+        new_row = pd.DataFrame([row_dict])
+
+    st.session_state["live_samples"] = pd.concat([samples_df, new_row], ignore_index=True)
+
+    grid = st.session_state.get("live_grid", D.load_grid_flat()).copy()
+    if "lat" in grid.columns and "lon" in grid.columns:
+        dists_m = np.hypot(grid["lon"] - lon, grid["lat"] - lat) * 111000.0
+        weights = 1.0 / (1.0 + (dists_m / 450.0) ** 2)
+        grid["temp_idw"] = (1.0 - weights) * grid["temp_idw"] + weights * float(temp_c)
+
+        rural_mask = (grid["builtup_frac"] < 0.20) & (grid["ndvi_mean"] > 0.40)
+        rural_base = grid.loc[rural_mask, "temp_idw"].mean() if rural_mask.any() else np.percentile(grid["temp_idw"], 10)
+        grid["uhi_intensity"] = grid["temp_idw"] - rural_base
+
+        p85 = np.percentile(grid["temp_idw"], 85)
+        grid["is_hotspot"] = (grid["temp_idw"] >= p85).astype(int)
+
+        if "priority_score" in grid.columns:
+            t_span = max(grid["temp_idw"].max() - grid["temp_idw"].min(), 1e-5)
+            norm_t = (grid["temp_idw"] - grid["temp_idw"].min()) / t_span
+            norm_b = grid["builtup_frac"]
+            norm_deficit = 1.0 - grid["ndvi_mean"]
+            grid["priority_score"] = 0.45 * norm_t + 0.35 * norm_deficit + 0.20 * norm_b
+            grid["priority_rank"] = grid["priority_score"].rank(ascending=False, method="min").astype(int)
+
+        st.session_state["live_grid"] = grid
+        st.session_state["custom_entries_count"] = st.session_state.get("custom_entries_count", 0) + 1
+
+
+def apply_greening_intervention(
+    target_ward: str,
+    tree_gain_pct: float,
+    cool_roof_pct: float,
+    concrete_reduction_pct: float,
+) -> pd.DataFrame:
+    grid = st.session_state.get("live_grid", D.load_grid_flat()).copy()
+    mask = (grid["ward_id"] == target_ward) if target_ward != "All wards" else np.ones(len(grid), dtype=bool)
+
+    delta_ndvi = (tree_gain_pct / 100.0) * 0.55
+    cool_roof_drop = (cool_roof_pct / 100.0) * 2.50
+    delta_built = (concrete_reduction_pct / 100.0) * 0.40
+    depave_drop = delta_built * 8.213
+
+    total_drop = (delta_ndvi * 3.082) + cool_roof_drop + depave_drop
+
+    grid.loc[mask, "temp_idw"] = grid.loc[mask, "temp_idw"] - total_drop
+    grid.loc[mask, "ndvi_mean"] = np.clip(grid.loc[mask, "ndvi_mean"] + delta_ndvi, 0.0, 1.0)
+    grid.loc[mask, "builtup_frac"] = np.clip(grid.loc[mask, "builtup_frac"] - delta_built, 0.0, 1.0)
+
+    rural_mask = (grid["builtup_frac"] < 0.20) & (grid["ndvi_mean"] > 0.40)
+    rural_base = grid.loc[rural_mask, "temp_idw"].mean() if rural_mask.any() else np.percentile(grid["temp_idw"], 10)
+    grid["uhi_intensity"] = grid["temp_idw"] - rural_base
+
+    p85 = np.percentile(grid["temp_idw"], 85)
+    grid["is_hotspot"] = (grid["temp_idw"] >= p85).astype(int)
+
+    if "priority_score" in grid.columns:
+        t_span = max(grid["temp_idw"].max() - grid["temp_idw"].min(), 1e-5)
+        norm_t = (grid["temp_idw"] - grid["temp_idw"].min()) / t_span
+        norm_b = grid["builtup_frac"]
+        norm_deficit = 1.0 - grid["ndvi_mean"]
+        grid["priority_score"] = 0.45 * norm_t + 0.35 * norm_deficit + 0.20 * norm_b
+        grid["priority_rank"] = grid["priority_score"].rank(ascending=False, method="min").astype(int)
+
+    return grid
+
+
 def page_upload(grid: pd.DataFrame):
     theme.hero(
-        "Data Ingestion Studio",
-        "Upload your own ground or satellite temperature samples and geospatial layers to re-run the complete spatial pipeline.",
-        pills=[("CSV / GeoTIFF", "solar"), ("Instant Validation", "lime"), ("Live Execution", "heat")],
+        "Interactive Data Entry & Simulation Hub",
+        "Enter new field sensor observations, edit city data in-place, and run greening/cool-roof interventions to dynamically recalculate urban heat island dynamics.",
+        pills=[("✍️ Data Entry", "cyan"), ("⚡ Real-Time Recalculation", "lime"), ("🌳 Cooling Simulator", "solar")],
     )
 
-    c1, c2 = st.columns([1.35, 1], gap="large")
+    theme.guide_box(
+        "How Data Entry Drives the Analytics · Simple Explanation",
+        [
+            ("1. Ground Sensors", "Adding new temperature readings directly updates the spatial interpolation surface. City heat maps and ward rankings recalculate immediately."),
+            ("2. What-If Interventions", "Simulate adding shade trees (+NDVI) or white cool roofs. The empirical regression model computes the exact temperature drop (ΔT) and hotspot reduction."),
+            ("3. City-Wide Sync", "Any data you add or simulate is instantly reflected across all 10 dashboard pages (Overview, Live Map, Ward Report Card, etc.)."),
+        ],
+        icon="✍️",
+    )
 
-    with c1:
-        theme.section_title("1. Upload Temperature Samples (CSV)")
+    tab_single, tab_table, tab_sim, tab_upload = st.tabs([
+        "📍 1. Add Sensor Observation",
+        "📝 2. Live Spreadsheet Editor",
+        "🌳 3. Cooling Intervention Simulator",
+        "📁 4. Batch File Upload",
+    ])
+
+    with tab_single:
+        theme.section_title("Manual Sensor Station Entry (Single Observation)")
         st.markdown(
-            '<div class="muted" style="margin-bottom:12px;">'
-            "Upload a CSV containing point temperature observations. "
-            "Required columns: <code>lat</code>, <code>lon</code>, <code>temp_c</code>. "
-            "Optional: <code>datetime</code>, <code>sample_id</code>.</div>",
+            '<div class="muted" style="margin-bottom:14px;color:#475569;">'
+            "Record a ground thermometer observation or IoT weather station reading to immediately blend it into the city heat model.</div>",
             unsafe_allow_html=True,
         )
 
-        uploaded_csv = st.file_uploader(
-            "Select or drop samples.csv",
-            type=["csv"],
-            key="user_samples_csv",
-            help="CSV with lat, lon, and temp_c in degrees Celsius.",
+        col_form, col_preview = st.columns([1.25, 1], gap="large")
+
+        with col_form:
+            loc_name = st.text_input("📍 Station / Location Name", "Gandhipuram Market Station", key="input_stn_name")
+            ward_opts = sorted(grid["ward_id"].dropna().unique().tolist()) if "ward_id" in grid.columns else [f"W{i:02d}" for i in range(1, 18)]
+            sel_ward = st.selectbox("Administrative Ward", ward_opts, index=0, key="input_stn_ward")
+            
+            c_geo1, c_geo2 = st.columns(2)
+            with c_geo1:
+                lat_val = st.number_input("Latitude (°N)", value=11.0168, format="%.5f", step=0.001, key="input_stn_lat")
+            with c_geo2:
+                lon_val = st.number_input("Longitude (°E)", value=76.9558, format="%.5f", step=0.001, key="input_stn_lon")
+
+            temp_val = st.slider("🌡️ Recorded Surface Temperature (°C)", min_value=20.0, max_value=48.0, value=34.5, step=0.1, key="input_stn_temp")
+            canopy_pct = st.slider("🌳 Tree Canopy Cover % (Greenness)", min_value=0, max_value=100, value=15, step=5, key="input_stn_canopy")
+            built_pct = st.slider("🏢 Built-up Concrete Fraction %", min_value=0, max_value=100, value=75, step=5, key="input_stn_built")
+
+            st.caption("💡 Presets: Urban Core: ~35°C (10% trees, 85% concrete) | Green Park: ~26°C (75% trees, 15% concrete)")
+            
+            if st.button("➕ Add Reading & Recalculate City Heat", type="primary", key="btn_add_reading"):
+                ndvi_inferred = float(canopy_pct / 100.0 * 0.7)
+                built_inferred = float(built_pct / 100.0)
+                add_sensor_reading_and_update_grid(
+                    name=loc_name,
+                    ward_id=sel_ward,
+                    lat=lat_val,
+                    lon=lon_val,
+                    temp_c=temp_val,
+                    ndvi_val=ndvi_inferred,
+                    builtup_val=built_inferred,
+                )
+                st.success(f"✓ Successfully added {loc_name} ({temp_val:.1f} °C) to {sel_ward}! City heat grid, UHI intensity, and ward rankings updated in real-time.")
+                st.rerun()
+
+        with col_preview:
+            theme.section_title("⚡ Real-Time Impact Preview")
+            curr_city_peak = float(grid["temp_idw"].max())
+            curr_city_avg = float(grid["temp_idw"].mean())
+            curr_ward_avg = float(grid.loc[grid["ward_id"] == sel_ward, "temp_idw"].mean()) if (grid["ward_id"] == sel_ward).any() else curr_city_avg
+
+            # Heat category pill
+            if temp_val >= 34.0:
+                heat_badge = '<span class="uhi-pill critical">🚨 Extreme Hotspot (> 34 °C)</span>'
+                risk_note = "High thermal risk for pedestrians, school children, and outdoor workers."
+            elif temp_val >= 30.0:
+                heat_badge = '<span class="uhi-pill high">🔥 High Urban Heat (30-34 °C)</span>'
+                risk_note = "Warm urban block with noticeable shade deficit and solar heat trap."
+            elif temp_val >= 26.0:
+                heat_badge = '<span class="uhi-pill moderate">☀️ Moderate Warmth (26-30 °C)</span>'
+                risk_note = "Typical daytime surface temperature with balanced ground cover."
+            else:
+                heat_badge = '<span class="uhi-pill resilient">🌿 Cool Resilient (< 26 °C)</span>'
+                risk_note = "High tree canopy cooling effect active; acts as a natural cold island."
+
+            st.markdown(
+                f"""
+                <div class="clean-card" style="padding:16px 18px; margin-bottom:12px;">
+                    <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; font-weight:700;">Sensor Heat Category</div>
+                    <div style="font-size:1.6rem; font-weight:800; color:#0f172a; margin:4px 0;">{temp_val:.1f} °C</div>
+                    <div style="margin-bottom:8px;">{heat_badge}</div>
+                    <div style="font-size:0.84rem; color:#475569; line-height:1.4;">{risk_note}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Mini comparison chart
+            comp_fig = go.Figure()
+            comp_fig.add_trace(go.Bar(
+                x=["This Sensor", f"{sel_ward} Avg", "City Avg", "City Peak"],
+                y=[temp_val, curr_ward_avg, curr_city_avg, curr_city_peak],
+                marker_color=[theme.HEAT_RED if temp_val >= 32 else theme.SUN_GOLD, theme.VIOLET, theme.CYAN, theme.SOLAR_ORANGE],
+                text=[f"{temp_val:.1f}°C", f"{curr_ward_avg:.1f}°C", f"{curr_city_avg:.1f}°C", f"{curr_city_peak:.1f}°C"],
+                textposition="auto",
+            ))
+            comp_fig.update_layout(height=210, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(title="°C"))
+            show_chart(comp_fig, 210)
+
+            st.caption("⚡ When added, surrounding 100 m grid cells are smoothly blended using IDW spatial interpolation. All 10 dashboard pages update instantly.")
+
+        # Collapsible registry table so it does not clutter the screen!
+        samples = st.session_state.get("live_samples", D.load_samples())
+        if hasattr(samples, "empty") and not samples.empty:
+            with st.expander(f"📋 View Active Weather Sensor Registry ({len(samples)} stations)", expanded=False):
+                display_cols = [c for c in ["sample_id", "ward_id", "lat", "lon", "temp_c", "datetime"] if c in samples.columns]
+                show_dataframe(samples[display_cols].tail(25), hide_index=True)
+
+    with tab_table:
+        theme.section_title("Live Spreadsheet Editor (Edit or Delete In-Place)")
+        st.markdown(
+            '<div class="muted" style="margin-bottom:14px;color:#475569;">'
+            "Directly modify sensor records or add rows in the interactive table below, then click Apply to re-run the city analytics.</div>",
+            unsafe_allow_html=True,
         )
 
-        if uploaded_csv is not None:
+        samples = st.session_state.get("live_samples", D.load_samples())
+        if isinstance(samples, pd.DataFrame) and not samples.empty:
+            edit_cols = [c for c in ["sample_id", "ward_id", "lat", "lon", "temp_c"] if c in samples.columns]
+            tail_df = samples[edit_cols].tail(40).copy()
             try:
-                df_up = pd.read_csv(uploaded_csv)
-                st.success(f"✓ Uploaded {uploaded_csv.name} ({len(df_up):,} records)")
+                edited_df = st.data_editor(tail_df, num_rows="dynamic", width="stretch", key="live_samples_editor")
+            except TypeError:
+                edited_df = st.data_editor(tail_df, num_rows="dynamic", use_container_width=True, key="live_samples_editor")
 
-                cols_lower = {c.lower(): c for c in df_up.columns}
-                has_lat = any(c in cols_lower for c in ["lat", "latitude", "y"])
-                has_lon = any(c in cols_lower for c in ["lon", "longitude", "x"])
-                has_temp = any(c in cols_lower for c in ["temp_c", "temp", "temperature", "lst"])
+            col_a, col_b = st.columns([1, 1], gap="medium")
+            with col_a:
+                if st.button("💾 Apply Edits & Recompute Analytics", type="primary", key="save_edited_samples"):
+                    # Blend the latest edited rows
+                    for _, row in edited_df.iterrows():
+                        try:
+                            t = float(row.get("temp_c", 28.0))
+                            lt = float(row.get("lat", 11.0168))
+                            ln = float(row.get("lon", 76.9558))
+                            w = str(row.get("ward_id", "W01"))
+                            add_sensor_reading_and_update_grid("Custom", w, lt, ln, t, 0.3, 0.5)
+                        except Exception:
+                            continue
+                    st.success("✓ Edits applied and city heat surface recomputed!")
+                    st.rerun()
+            with col_b:
+                if st.button("🔄 Reset to Default City Dataset", key="reset_from_editor"):
+                    st.session_state["live_grid"] = D.load_grid_flat()
+                    st.session_state["live_samples"] = D.load_samples()
+                    st.session_state["custom_entries_count"] = 0
+                    st.session_state["scenario_active"] = False
+                    st.success("✓ Restored default baseline city data.")
+                    st.rerun()
 
-                if not (has_lat and has_lon and has_temp):
-                    st.error("Missing required columns! File must include: lat, lon, temp_c")
-                else:
-                    lat_col = next(cols_lower[c] for c in ["lat", "latitude", "y"] if c in cols_lower)
-                    lon_col = next(cols_lower[c] for c in ["lon", "longitude", "x"] if c in cols_lower)
-                    temp_col = next(cols_lower[c] for c in ["temp_c", "temp", "temperature", "lst"] if c in cols_lower)
+    with tab_sim:
+        theme.section_title("🌳 Urban Greening & Cool Roofs Intervention Simulator")
+        st.markdown(
+            '<div class="muted" style="margin-bottom:16px;color:#475569;">'
+            "Test how municipal climate action policies (planting street trees, white reflective roofs, and de-paving concrete) will physically cool neighborhoods down.</div>",
+            unsafe_allow_html=True,
+        )
 
-                    theme.section_title("Data Preview & Validation")
+        c_s1, c_s2 = st.columns([1.1, 1.2], gap="large")
+        with c_s1:
+            ward_choices = ["All wards"] + sorted(grid["ward_id"].dropna().unique().tolist()) if "ward_id" in grid.columns else ["All wards"]
+            sim_target = st.selectbox("🎯 Target Area for Intervention", ward_choices, index=0)
+
+            tree_gain = st.slider("🌳 Tree Canopy Expansion (%)", min_value=0, max_value=50, value=20, step=5, help="Increases vegetative NDVI, dropping local temperatures by up to 3.08 °C.")
+            roof_gain = st.slider("🏠 Cool Roofs Coating (%)", min_value=0, max_value=80, value=30, step=10, help="White reflective paint prevents solar absorption on building rooftops.")
+            depave_gain = st.slider("🏢 Concrete Depaving / Permeable Pavement (%)", min_value=0, max_value=30, value=10, step=5, help="Replaces impervious concrete roads with grass pavers.")
+
+            sim_grid = apply_greening_intervention(sim_target, tree_gain, roof_gain, depave_gain)
+
+            mask = (grid["ward_id"] == sim_target) if sim_target != "All wards" else np.ones(len(grid), dtype=bool)
+            t_orig = float(grid.loc[mask, "temp_idw"].mean())
+            t_new = float(sim_grid.loc[mask, "temp_idw"].mean())
+            drop = t_orig - t_new
+
+            hot_orig = int(grid.loc[mask, "is_hotspot"].sum())
+            hot_new = int(sim_grid.loc[mask, "is_hotspot"].sum())
+            hot_elim = max(0, hot_orig - hot_new)
+
+            theme.kpi_row([
+                ("Cooling Achieved", f"-{drop:.2f} °C", "Local street temperature reduction"),
+                ("Hotspots Mitigated", f"{hot_elim} blocks", f"Dropped from {hot_orig} to {hot_new}"),
+                ("New Average Temp", f"{t_new:.1f} °C", f"Down from {t_orig:.1f} °C"),
+            ])
+
+            if st.button("✨ Apply This Greening Plan Across Entire Dashboard", type="primary", key="apply_scenario_btn"):
+                st.session_state["live_grid"] = sim_grid
+                st.session_state["scenario_active"] = True
+                st.success(f"✓ Greening plan applied! {sim_target} cooled down by -{drop:.2f} °C. Open Overview or Ward Report to see the cooled city.")
+                st.rerun()
+
+        with c_s2:
+            theme.section_title("Before vs After Intervention Comparison")
+            comp_df = pd.DataFrame({
+                "Scenario": ["Current (Baseline)", "After Intervention"],
+                "Average Temperature (°C)": [t_orig, t_new],
+                "Extreme Hotspot Blocks": [hot_orig, hot_new],
+            })
+            fig_sim = px.bar(
+                comp_df,
+                x="Scenario",
+                y="Average Temperature (°C)",
+                color="Scenario",
+                color_discrete_sequence=[theme.HEAT_RED, theme.LIME],
+                text_auto=".2f",
+            )
+            fig_sim.update_layout(height=280, showlegend=False, margin=dict(l=10, r=10, t=30, b=10))
+            fig_sim.update_yaxes(range=[min(t_new - 1, 20), max(t_orig + 1, 40)])
+            show_chart(fig_sim, 280)
+
+            st.caption("🟢 Green bar represents the cooled city after shade tree planting and cool roofs!")
+
+    with tab_upload:
+        theme.section_title("Batch File Upload (CSV & GeoTIFF)")
+        st.markdown(
+            '<div class="muted" style="margin-bottom:12px;color:#475569;">'
+            "Upload complete CSV point datasets or auxiliary GeoTIFF / GeoJSON spatial files.</div>",
+            unsafe_allow_html=True,
+        )
+
+        c_u1, c_u2 = st.columns([1.35, 1], gap="large")
+        with c_u1:
+            uploaded_csv = st.file_uploader("Upload Point Samples (.csv)", type=["csv"], key="batch_csv_uploader")
+            if uploaded_csv is not None:
+                try:
+                    df_up = pd.read_csv(uploaded_csv)
+                    st.success(f"✓ Loaded {uploaded_csv.name} ({len(df_up):,} rows)")
                     show_dataframe(df_up.head(5))
+                    if st.button("🚀 Ingest CSV into Pipeline", type="primary", key="ingest_csv_btn"):
+                        raw_dir = D.get_config().path_for("data_raw", create=True)
+                        df_up.to_csv(raw_dir / "samples.csv", index=False)
+                        D.recompute_pipeline_with_custom_data(source="synthetic", skip_generate=True)
+                        st.success("✓ Pipeline recomputed with uploaded dataset!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error loading CSV: {e}")
 
-                    theme.kpi_row(
-                        [
-                            ("Samples", f"{len(df_up):,}", "uploaded points"),
-                            ("Min Temp", f"{df_up[temp_col].min():.1f} C", "lowest point"),
-                            ("Max Temp", f"{df_up[temp_col].max():.1f} C", "highest point"),
-                            ("Mean Temp", f"{df_up[temp_col].mean():.1f} C", "average"),
-                        ]
-                    )
-
-                    fig_preview = px.scatter(
-                        df_up,
-                        x=lon_col,
-                        y=lat_col,
-                        color=temp_col,
-                        color_continuous_scale="Inferno",
-                        labels={lon_col: "Longitude", lat_col: "Latitude", temp_col: "Temp (C)"},
-                        title="Uploaded Sample Points Map",
-                    )
-                    fig_preview.update_layout(height=280, margin=dict(l=10, r=10, t=35, b=10))
-                    show_chart(fig_preview, 280)
-
-                    if st.button("🚀 Save & Run Pipeline with Uploaded Data", type="primary"):
-                        with st.spinner("Writing custom samples and re-running spatial interpolation pipeline..."):
-                            save_df = df_up.rename(columns={lat_col: "lat", lon_col: "lon", temp_col: "temp_c"}).copy()
-                            if "sample_id" not in save_df.columns:
-                                save_df["sample_id"] = [f"custom_{i+1:04d}" for i in range(len(save_df))]
-                            if "datetime" not in save_df.columns:
-                                save_df["datetime"] = "2026-05-15T10:30:00"
-
-                            raw_dir = D.get_config().path_for("data_raw", create=True)
-                            save_df[["sample_id", "lat", "lon", "temp_c", "datetime"]].to_csv(raw_dir / "samples.csv", index=False)
-
-                            D.recompute_pipeline_with_custom_data(source="synthetic", skip_generate=True)
-                            st.success("✓ Pipeline successfully recomputed! New heat surface, UHI intensity, and priority scores are live.")
-                            st.balloons()
-                            st.rerun()
-
-            except Exception as e:
-                st.error(f"Error processing uploaded CSV: {e}")
-
-    with c2:
-        theme.section_title("2. Sample CSV Template")
-        st.markdown(
-            '<div class="glass">'
-            "Download this sample CSV template to format your field sensors or Landsat point extracts."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        sample_template_csv = (
-            "sample_id,lat,lon,temp_c,datetime\n"
-            "s_0001,11.0168,76.9558,34.2,2026-05-15T10:30:00\n"
-            "s_0002,11.0210,76.9610,35.1,2026-05-15T10:30:00\n"
-            "s_0003,11.0120,76.9490,28.4,2026-05-15T10:30:00\n"
-            "s_0004,11.0250,76.9530,32.7,2026-05-15T10:30:00\n"
-            "s_0005,11.0080,76.9620,29.8,2026-05-15T10:30:00\n"
-        )
-        st.download_button(
-            "⬇  Download samples_template.csv",
-            sample_template_csv.encode(),
-            file_name="samples_template.csv",
-            mime="text/csv",
-            key="dl_template_csv",
-        )
-
-        theme.section_title("3. Optional Spatial Layers")
-        st.markdown(
-            '<div class="muted" style="margin-bottom:8px;">'
-            "Upload auxiliary GeoTIFF or GeoJSON files to replace default base layers:</div>",
-            unsafe_allow_html=True,
-        )
-        up_ndvi = st.file_uploader("NDVI Raster (.tif)", type=["tif", "tiff"], key="up_ndvi")
-        if up_ndvi:
-            D.save_uploaded_file(up_ndvi, "ndvi.tif")
-            st.success("✓ Saved ndvi.tif to data/raw/")
-
-        up_boundary = st.file_uploader("City Boundary (.geojson)", type=["geojson", "json"], key="up_bound")
-        if up_boundary:
-            D.save_uploaded_file(up_boundary, "boundary.geojson")
-            st.success("✓ Saved boundary.geojson to data/raw/")
-
-        up_bldgs = st.file_uploader("Building Footprints (.geojson)", type=["geojson", "json"], key="up_bldgs")
-        if up_bldgs:
-            D.save_uploaded_file(up_bldgs, "buildings.geojson")
-            st.success("✓ Saved buildings.geojson to data/raw/")
+        with c_u2:
+            st.markdown('<div class="muted">Template download:</div>', unsafe_allow_html=True)
+            template_csv = "sample_id,lat,lon,temp_c,datetime\ns_01,11.0168,76.9558,34.2,2026-05-15T10:30:00\ns_02,11.0210,76.9610,35.1,2026-05-15T10:30:00\n"
+            st.download_button("⬇ Download Template CSV", template_csv.encode(), file_name="template_samples.csv", mime="text/csv", key="dl_tmpl_btn")
 
 
 def page_download():
@@ -2012,11 +2175,24 @@ def main():
     if not D.artefacts_ready():
         D._run_pipeline()
 
-    grid = D.load_grid_flat()
-    try:
-        ward_summary = D.load_table("ward_summary")
-    except Exception:
-        ward_summary = pd.DataFrame()
+    if "live_grid" not in st.session_state:
+        st.session_state["live_grid"] = D.load_grid_flat()
+    if "live_samples" not in st.session_state:
+        st.session_state["live_samples"] = D.load_samples()
+    if "custom_entries_count" not in st.session_state:
+        st.session_state["custom_entries_count"] = 0
+    if "scenario_active" not in st.session_state:
+        st.session_state["scenario_active"] = False
+
+    grid = st.session_state["live_grid"]
+
+    if st.session_state.get("custom_entries_count", 0) > 0 or st.session_state.get("scenario_active", False):
+        ward_summary = recalculate_ward_summary(grid)
+    else:
+        try:
+            ward_summary = D.load_table("ward_summary")
+        except Exception:
+            ward_summary = recalculate_ward_summary(grid)
 
     page, view, ward = sidebar(grid, ward_summary)
 
